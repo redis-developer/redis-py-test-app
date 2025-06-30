@@ -131,19 +131,19 @@ class BasicWorkload(BaseWorkload):
             if operation == "SET":
                 key = self._generate_key()
                 value = self._generate_value()
-                self.client.execute_command("set", key, value)
+                self.client.set(key, value)
 
             elif operation == "GET":
                 key = self._generate_key()
-                self.client.execute_command("get", key)
+                self.client.get(key)
 
             elif operation == "DEL":
                 key = self._generate_key()
-                self.client.execute_command("delete", key)
+                self.client.delete(key)
 
             elif operation == "INCR":
                 key = self._generate_key()
-                self.client.execute_command("incr", key)
+                self.client.incr(key)
 
             else:
                 self.logger.warning(f"Unknown operation: {operation}")
@@ -167,26 +167,26 @@ class ListWorkload(BaseWorkload):
             if operation == "LPUSH":
                 key = self._generate_key()
                 value = self._generate_value()
-                self.client.execute_command("lpush", key, value)
-                
+                self.client.lpush(key, value)
+
             elif operation == "RPUSH":
                 key = self._generate_key()
                 value = self._generate_value()
-                self.client.execute_command("rpush", key, value)
-                
+                self.client.rpush(key, value)
+
             elif operation == "LRANGE":
                 key = self._generate_key()
                 start = random.randint(0, 10)
                 end = start + random.randint(1, 20)
-                self.client.execute_command("lrange", key, start, end)
-                
+                self.client.lrange(key, start, end)
+
             elif operation == "LPOP":
                 key = self._generate_key()
-                self.client.execute_command("lpop", key)
-                
+                self.client.lpop(key)
+
             elif operation == "RPOP":
                 key = self._generate_key()
-                self.client.execute_command("rpop", key)
+                self.client.rpop(key)
                 
             else:
                 self.logger.warning(f"Unknown list operation: {operation}")
@@ -322,7 +322,7 @@ class PubSubWorkload(BaseWorkload):
                 channels = self.config.get_option("channels", ["test_channel"])
                 channel = random.choice(channels)
                 message = self._generate_value()
-                self.client.execute_command("publish", channel, message)
+                self.client.publish(channel, message)
 
             elif operation == "SUBSCRIBE":
                 # Start subscriber if not already running

@@ -341,7 +341,7 @@
     "to": "now"
   },
   "timepicker": {},
-  "refresh": "${GRAFANA_REFRESH_INTERVAL:-5s}",
+  "refresh": "5s",
   "timezone": "",
   "title": "Redis Test App Dashboard",
   "uid": "redis-test-app",

@@ -12,7 +12,7 @@ receivers:
         - job_name: 'redis-test-app'
           static_configs:
             - targets: ['redis-test-app:8000']
-          scrape_interval: ${PROMETHEUS_SCRAPE_INTERVAL:-5s}
+          scrape_interval: 5s
           metrics_path: /metrics
 
 processors:
@@ -37,26 +37,26 @@ exporters:
     const_labels:
       environment: docker
   
-  # Jaeger exporter
-  jaeger:
-    endpoint: jaeger:14250
+  # OTLP exporter for Jaeger (using internal Docker network)
+  otlp/jaeger:
+    endpoint: jaeger:4317
     tls:
       insecure: true
   
-  # Logging exporter for debugging
-  logging:
-    loglevel: info
+  # Debug exporter for debugging (replaces deprecated logging exporter)
+  debug:
+    verbosity: normal
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [jaeger, logging]
-    
+      exporters: [otlp/jaeger, debug]
+
     metrics:
       receivers: [otlp, prometheus]
       processors: [batch, resource]
-      exporters: [prometheus, logging]
+      exporters: [prometheus, debug]
 
   extensions: []

@@ -308,6 +308,91 @@ class RedisClientManager:
         """Check if client is connected to Redis."""
         return self._client is not None and self._ensure_connection()
 
+    def _execute_with_metrics(self, operation_name: str, client_method, *args, **kwargs):
+        """Helper method to execute Redis operations with metrics tracking."""
+        start_time = time.time()
+        try:
+            result = client_method(*args, **kwargs)
+            duration = time.time() - start_time
+            self.metrics.record_operation(operation_name, duration, True)
+            return result
+        except Exception as e:
+            duration = time.time() - start_time
+            self.metrics.record_operation(operation_name, duration, False, type(e).__name__)
+            raise
+
+    # Basic Redis operations with direct client method calls
+    def set(self, key: str, value: str, **kwargs) -> bool:
+        """Set a key-value pair."""
+        return self._execute_with_metrics('SET', self._client.set, key, value, **kwargs)
+
+    def get(self, key: str) -> Optional[str]:
+        """Get value by key."""
+        return self._execute_with_metrics('GET', self._client.get, key)
+
+    def delete(self, *keys: str) -> int:
+        """Delete one or more keys."""
+        return self._execute_with_metrics('DELETE', self._client.delete, *keys)
+
+    def incr(self, key: str, amount: int = 1) -> int:
+        """Increment a key by amount."""
+        if amount == 1:
+            return self._execute_with_metrics('INCR', self._client.incr, key)
+        else:
+            return self._execute_with_metrics('INCR', self._client.incrby, key, amount)
+
+    def decr(self, key: str, amount: int = 1) -> int:
+        """Decrement a key by amount."""
+        if amount == 1:
+            return self._execute_with_metrics('DECR', self._client.decr, key)
+        else:
+            return self._execute_with_metrics('DECR', self._client.decrby, key, amount)
+
+    # List operations
+    def lpush(self, key: str, *values: str) -> int:
+        """Push values to the left of a list."""
+        return self._execute_with_metrics('LPUSH', self._client.lpush, key, *values)
+
+    def rpush(self, key: str, *values: str) -> int:
+        """Push values to the right of a list."""
+        return self._execute_with_metrics('RPUSH', self._client.rpush, key, *values)
+
+    def lpop(self, key: str, count: Optional[int] = None) -> Optional[str]:
+        """Pop value from the left of a list."""
+        if count is not None:
+            return self._execute_with_metrics('LPOP', self._client.lpop, key, count)
+        else:
+            return self._execute_with_metrics('LPOP', self._client.lpop, key)
+
+    def rpop(self, key: str, count: Optional[int] = None) -> Optional[str]:
+        """Pop value from the right of a list."""
+        if count is not None:
+            return self._execute_with_metrics('RPOP', self._client.rpop, key, count)
+        else:
+            return self._execute_with_metrics('RPOP', self._client.rpop, key)
+
+    def lrange(self, key: str, start: int, end: int) -> List[str]:
+        """Get a range of elements from a list."""
+        return self._execute_with_metrics('LRANGE', self._client.lrange, key, start, end)
+
+    def llen(self, key: str) -> int:
+        """Get the length of a list."""
+        return self._execute_with_metrics('LLEN', self._client.llen, key)
+
+    # Pub/Sub operations
+    def publish(self, channel: str, message: str) -> int:
+        """Publish a message to a channel."""
+        return self._execute_with_metrics('PUBLISH', self._client.publish, channel, message)
+
+    def pubsub(self):
+        """Get a pubsub instance."""
+        return self._client.pubsub()
+
+    # Transaction operations
+    def pipeline(self, transaction: bool = True):
+        """Get a pipeline instance."""
+        return self._client.pipeline(transaction=transaction)
+
 
 class RedisClientPool:
     """Pool of Redis clients for multi-threaded access."""

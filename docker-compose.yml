@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Redis Database
   redis:
-    image: redislabs/client-libs-test:8.0.2
+    image: redis:8.2-m01
     container_name: redis-test-db
     ports:
       - "6379:6379"
@@ -44,8 +44,6 @@ services:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yml"]
-    env_file:
-      - .env.docker
     volumes:
       - ./observability/otel-collector-config.yml:/etc/otel-collector-config.yml
     ports:
@@ -65,8 +63,6 @@ services:
     container_name: prometheus
     ports:
       - "9090:9090"
-    env_file:
-      - .env.docker
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -86,8 +82,6 @@ services:
     container_name: grafana
     ports:
       - "3000:3000"
-    env_file:
-      - .env.docker
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
