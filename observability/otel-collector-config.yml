@@ -32,7 +32,7 @@ processors:
 exporters:
   # Prometheus exporter
   prometheus:
-    endpoint: "0.0.0.0:8888"
+    endpoint: "0.0.0.0:8889"
     namespace: redis_test
     const_labels:
       environment: docker

@@ -138,6 +138,10 @@ class RunnerConfig:
     otel_export_interval_ms: int = 5000
     otel_resource_attributes: Dict[str, str] = field(default_factory=dict)
 
+    # Multi-app identification
+    app_name: str = "python"
+    instance_id: Optional[str] = None
+
 
 class WorkloadProfiles:
     """Pre-defined workload profiles with intuitive, descriptive names."""

@@ -86,6 +86,8 @@ def cli():
 @click.option('--otel-endpoint', default=lambda: get_env_or_default('OTEL_EXPORTER_OTLP_ENDPOINT', None), help='OpenTelemetry OTLP endpoint')
 @click.option('--otel-service-name', default=lambda: get_env_or_default('OTEL_SERVICE_NAME', 'redis-load-test'), help='OpenTelemetry service name')
 @click.option('--otel-export-interval', type=int, default=lambda: get_env_or_default('OTEL_EXPORT_INTERVAL', 5000, int), help='OpenTelemetry export interval in milliseconds')
+@click.option('--app-name', default=lambda: get_env_or_default('APP_NAME', 'python'), help='Application name for multi-app filtering (python, go, java, etc.)')
+@click.option('--instance-id', default=lambda: get_env_or_default('INSTANCE_ID', None), help='Unique instance identifier')
 @click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for metrics export (JSON)')
 @click.option('--quiet', is_flag=True, default=lambda: get_env_or_default('QUIET', False, bool), help='Suppress periodic stats output')
 @click.option('--config-file', default=lambda: get_env_or_default('CONFIG_FILE', None), help='Load configuration from YAML/JSON file')
@@ -309,7 +311,9 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         otel_enabled=kwargs['otel_enabled'],
         otel_endpoint=kwargs['otel_endpoint'],
         otel_service_name=kwargs['otel_service_name'],
-        otel_export_interval_ms=kwargs['otel_export_interval']
+        otel_export_interval_ms=kwargs['otel_export_interval'],
+        app_name=kwargs['app_name'],
+        instance_id=kwargs['instance_id']
     )
 
     return config

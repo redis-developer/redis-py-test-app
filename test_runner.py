@@ -29,7 +29,9 @@ class TestRunner:
             otel_endpoint=config.otel_endpoint,
             service_name=config.otel_service_name,
             service_version=config.otel_service_version,
-            otel_export_interval_ms=config.otel_export_interval_ms
+            otel_export_interval_ms=config.otel_export_interval_ms,
+            app_name=config.app_name,
+            instance_id=config.instance_id
         )
         
         # Test control
