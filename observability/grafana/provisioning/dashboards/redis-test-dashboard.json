@@ -171,13 +171,13 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(redis_operation_duration_ms_bucket{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(redis_operation_duration_bucket{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation, le))",
           "interval": "",
           "legendFormat": "95th percentile - {{operation}}",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.50, sum(rate(redis_operation_duration_ms_bucket{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation, le))",
+          "expr": "histogram_quantile(0.50, sum(rate(redis_operation_duration_bucket{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation, le))",
           "interval": "",
           "legendFormat": "50th percentile - {{operation}}",
           "refId": "B"
@@ -258,7 +258,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(redis_operation_duration_ms_sum{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation) / sum(rate(redis_operation_duration_ms_count{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation)",
+          "expr": "sum(rate(redis_operation_duration_sum{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation) / sum(rate(redis_operation_duration_count{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation)",
           "interval": "",
           "legendFormat": "Average - {{operation}}",
           "refId": "A"

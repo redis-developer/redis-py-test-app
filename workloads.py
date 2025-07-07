@@ -39,7 +39,7 @@ class BaseWorkload(ABC):
                 key_id = self._key_counter
                 self._key_counter += 1
 
-            key_prefix = self.config.get_option("keyPrefix", "test_key")
+            key_prefix = self.config.get_option("keyPrefix", "rw_test")
             return f"{key_prefix}:{key_id}"
 
     def _generate_value(self) -> str:

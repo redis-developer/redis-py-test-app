@@ -87,7 +87,7 @@ def cli():
 @click.option('--otel-service-name', default=lambda: get_env_or_default('OTEL_SERVICE_NAME', 'redis-load-test'), help='OpenTelemetry service name')
 @click.option('--otel-export-interval', type=int, default=lambda: get_env_or_default('OTEL_EXPORT_INTERVAL', 5000, int), help='OpenTelemetry export interval in milliseconds')
 @click.option('--app-name', default=lambda: get_env_or_default('APP_NAME', 'python'), help='Application name for multi-app filtering (python, go, java, etc.)')
-@click.option('--instance-id', default=lambda: get_env_or_default('INSTANCE_ID', None), help='Unique instance identifier')
+@click.option('--instance-id', default=lambda: get_env_or_default('INSTANCE_ID', None), help='Unique instance identifier (auto-generated if not provided)')
 @click.option('--version', default=lambda: get_env_or_default('VERSION', None), help='Version identifier (defaults to redis-py package version)')
 @click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for metrics export (JSON)')
 @click.option('--quiet', is_flag=True, default=lambda: get_env_or_default('QUIET', False, bool), help='Suppress periodic stats output')

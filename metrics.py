@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Deque
 import statistics
 import json
 import os
+import uuid
 
 # Prometheus imports (for backward compatibility)
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
@@ -57,7 +58,7 @@ class MetricsCollector:
         self.service_version = service_version
         self.otel_export_interval_ms = otel_export_interval_ms
         self.app_name = app_name
-        self.instance_id = instance_id or f"{app_name}-{int(time.time())}"
+        self.instance_id = instance_id if instance_id and instance_id.strip() else f"{app_name}-{str(uuid.uuid4())[:8]}"
         self.version = version or "unknown"
 
         # Thread-safe metrics storage
@@ -118,9 +119,9 @@ class MetricsCollector:
             )
 
             self.otel_operation_duration = self.meter.create_histogram(
-                name="redis_operation_duration_ms",
+                name="redis_operation_duration",
                 description="Duration of Redis operations in milliseconds",
-                unit="1"
+                unit="ms"
             )
 
             self.otel_connections_counter = self.meter.create_counter(

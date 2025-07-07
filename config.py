@@ -226,7 +226,7 @@ class WorkloadProfiles:
                     "operation_weights": {"SET": 0.4, "GET": 0.5, "DEL": 0.1},
                     "valueSize": 100,
                     "iterationCount": 1000,
-                    "keyPrefix": "test_key",
+                    "keyPrefix": "rw_test",
                     "keyRange": 10000
                 }
             ),

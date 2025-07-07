@@ -287,7 +287,7 @@ TEST_THREADS_PER_CLIENT=3
 
 # Application Identity
 APP_NAME=python-dev
-INSTANCE_ID=dev-instance-1
+INSTANCE_ID=  # Auto-generated random ID if not specified
 VERSION=v1.0.0
 
 # OpenTelemetry
