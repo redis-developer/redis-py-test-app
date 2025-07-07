@@ -182,7 +182,7 @@ class TestConfig:
 
 @dataclass
 class RunnerConfig:
-    """Main runner configuration matching lettuce-test-app structure."""
+    """Main runner configuration"""
     redis: RedisConnectionConfig = field(default_factory=RedisConnectionConfig)
     test: TestConfig = field(default_factory=TestConfig)
 

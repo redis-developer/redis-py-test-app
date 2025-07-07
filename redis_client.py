@@ -302,7 +302,7 @@ class RedisClientManager:
     
     def get_info(self) -> Dict[str, Any]:
         """Get Redis server information."""
-        return self.execute_command('info')
+        return self._client.info()
     
     def is_connected(self) -> bool:
         """Check if client is connected to Redis."""
