@@ -320,14 +320,67 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "redis_active_connections",
+          "expr": "redis_connections_total{app_name=~\"$app_name\"}",
           "interval": "",
-          "legendFormat": "Active Connections",
+          "legendFormat": "{{app_name}} - {{instance_id}}",
           "refId": "A"
         }
       ],
       "title": "Active Connections",
       "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "displayMode": "visible",
+          "placement": "bottom"
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "increase(redis_connections_total{app_name=~\"$app_name\"}[5m])",
+          "interval": "",
+          "legendFormat": "{{app_name}} - {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Connection Attempts (5m)",
+      "type": "piechart"
     },
     {
       "datasource": "Prometheus",

@@ -132,6 +132,12 @@ class MetricsCollector:
                 unit="1"
             )
 
+            self.otel_active_connections = self.meter.create_gauge(
+                name="redis_active_connections",
+                description="Number of active Redis connections",
+                unit="1"
+            )
+
 
 
             # Note: Using manual instrumentation instead of automatic Redis instrumentation
@@ -290,11 +296,24 @@ class MetricsCollector:
 
     def update_active_connections(self, count: int):
         """Update active connections count."""
-        # Update OpenTelemetry metrics
+        # Update OpenTelemetry metrics with proper labels
         if self.enable_otel and hasattr(self, 'otel_active_connections'):
-            self.otel_active_connections.add(count)
+            labels = {
+                "app_name": self.app_name,
+                "instance_id": self.instance_id,
+                "version": self.version
+            }
+            # Use set() for gauge metrics, not add()
+            self.otel_active_connections.set(count, labels)
 
-        # Active connections tracked via OpenTelemetry only
+        # Update Prometheus metrics with app identification
+        if self.enable_prometheus and hasattr(self, 'prom_active_connections'):
+            labels = {
+                'app_name': self.app_name,
+                'service_name': self.service_name,
+                'instance_id': self.instance_id
+            }
+            self.prom_active_connections.labels(**labels).set(count)
 
 
 
