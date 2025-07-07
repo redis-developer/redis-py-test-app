@@ -172,6 +172,7 @@ make status
 **Custom Configuration:**
 ```bash
 # Multiple clients with custom threading
+# Note: app-name will be concatenated with workload profile (python-dev-basic_rw)
 ./venv/bin/python main.py run \
   --workload-profile basic_rw \
   --duration 300 \
@@ -253,12 +254,22 @@ make dev-stop
 --client-instances N         # Number of client pools (default: 1)
 --connections-per-client N   # Connections per pool (default: 5)
 --threads-per-client N       # Worker threads per pool (default: 2)
---app-name NAME             # Application identifier (default: python-local)
+--app-name NAME             # Base application name (default: python)
 --version VERSION           # Version label (default: dev)
 --host HOST                 # Redis host (default: localhost)
 --port PORT                 # Redis port (default: 6379)
 --quiet                     # Minimal output
 ```
+
+#### **App Naming Convention:**
+The final app name in metrics is automatically concatenated as: `{app-name}-{workload-profile}`
+
+**Examples:**
+- `--app-name python --workload-profile basic_rw` → `python-basic_rw`
+- `--app-name python-dev --workload-profile high_throughput` → `python-dev-high_throughput`
+- `--app-name go-test --workload-profile list_operations` → `go-test-list_operations`
+
+This allows easy filtering and identification of different workloads in Grafana dashboards.
 
 #### **Environment Variables:**
 ```bash
