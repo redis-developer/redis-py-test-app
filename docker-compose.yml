@@ -18,10 +18,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Test Application
-  redis-test-app:
+  # High Throughput Workload (SET/GET operations with pipelining)
+  redis-test-high-throughput:
     build: .
-    container_name: redis-test-app
+    container_name: redis-test-high-throughput
     depends_on:
       redis:
         condition: service_healthy
@@ -29,14 +29,86 @@ services:
         condition: service_started
     env_file:
       - .env.docker
-    ports:
-      - "8000:8000"  # Prometheus metrics
+    environment:
+      - APP_NAME=python-high-throughput
+      - INSTANCE_ID=python-high-throughput-1
+      - WORKLOAD_PROFILE=high_throughput
     volumes:
       - ./logs:/app/logs
     networks:
       - redis-test-network
     command: >
-      python main.py run
+      python main.py run --workload-profile high_throughput
+    restart: unless-stopped
+
+  # Basic Read/Write Workload (SET, GET, DEL, INCR)
+  redis-test-basic-rw:
+    build: .
+    container_name: redis-test-basic-rw
+    depends_on:
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    env_file:
+      - .env.docker
+    environment:
+      - APP_NAME=python-basic-rw
+      - INSTANCE_ID=python-basic-rw-1
+      - WORKLOAD_PROFILE=basic_rw
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - redis-test-network
+    command: >
+      python main.py run --workload-profile basic_rw
+      # Add --duration <seconds> for time-limited tests (e.g., --duration 60)
+    restart: unless-stopped
+
+  # List Operations Workload (LPUSH, LRANGE, LPOP, etc.)
+  redis-test-list-ops:
+    build: .
+    container_name: redis-test-list-ops
+    depends_on:
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    env_file:
+      - .env.docker
+    environment:
+      - APP_NAME=python-list-ops
+      - INSTANCE_ID=python-list-ops-1
+      - WORKLOAD_PROFILE=list_operations
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - redis-test-network
+    command: >
+      python main.py run --workload-profile list_operations
+    restart: unless-stopped
+
+  # Async Mixed Operations Workload (combination of different operations with async)
+  redis-test-async-mixed:
+    build: .
+    container_name: redis-test-async-mixed
+    depends_on:
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    env_file:
+      - .env.docker
+    environment:
+      - APP_NAME=python-async-mixed
+      - INSTANCE_ID=python-async-mixed-1
+      - WORKLOAD_PROFILE=async_mixed
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - redis-test-network
+    command: >
+      python main.py run --workload-profile async_mixed
     restart: unless-stopped
 
   # OpenTelemetry Collector

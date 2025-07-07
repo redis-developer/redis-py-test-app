@@ -6,36 +6,21 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
   
-  prometheus:
-    config:
-      scrape_configs:
-        - job_name: 'redis-test-app'
-          static_configs:
-            - targets: ['redis-test-app:8000']
-          scrape_interval: 5s
-          metrics_path: /metrics
+
 
 processors:
   batch:
     timeout: 1s
     send_batch_size: 1024
   
-  resource:
-    attributes:
-      - key: service.name
-        value: redis-py-test-app
-        action: upsert
-      - key: deployment.environment
-        value: docker
-        action: upsert
+  # Remove resource processor to avoid label duplication
+  # Labels are now set directly by the application
 
 exporters:
   # Prometheus exporter
   prometheus:
     endpoint: "0.0.0.0:8889"
-    namespace: redis_test
-    const_labels:
-      environment: docker
+    # Remove const_labels to avoid duplication
   
   # OTLP exporter for Jaeger (using internal Docker network)
   otlp/jaeger:
@@ -51,12 +36,12 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch, resource]
+      processors: [batch]
       exporters: [otlp/jaeger, debug]
 
     metrics:
-      receivers: [otlp, prometheus]
-      processors: [batch, resource]
+      receivers: [otlp]
+      processors: [batch]
       exporters: [prometheus, debug]
 
   extensions: []

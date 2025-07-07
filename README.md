@@ -4,7 +4,7 @@ A comprehensive Redis load testing tool designed to simulate high-volume operati
 
 ## Features
 
-- **50K+ ops/sec capability** through multi-threaded architecture
+- **High throughput** through multi-threaded architecture
 - **Standalone & Cluster Redis** support with TLS/SSL
 - **Intuitive workload profiles** with descriptive names
 - **Comprehensive observability** with Prometheus metrics
@@ -12,9 +12,30 @@ A comprehensive Redis load testing tool designed to simulate high-volume operati
 - **Connection resilience** with auto-reconnect and retry logic
 - **CLI interface** with extensive configuration options
 
-## 🚀 Quick Start (Docker - Recommended)
+## 🚀 Quick Start
 
-**The fastest way to get everything running with full monitoring:**
+### 🛠️ Local Development (Recommended)
+
+**Fast iteration with metrics stack in Docker + Python app running locally:**
+
+```bash
+# Start metrics stack (once)
+make dev-start-metrics-stack
+
+# Run tests repeatedly (fast iteration)
+python main.py run --workload-profile basic_rw --duration 30
+python main.py run --workload-profile high_throughput --duration 60
+python main.py run --workload-profile basic_rw # unlimited test run
+```
+
+**Access your dashboards:**
+- **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
+- **📈 Prometheus**: http://localhost:9090 - Raw metrics
+- **🔍 Jaeger**: http://localhost:16686 - Distributed tracing
+
+### 🐳 Full Docker Environment
+
+**For testing complete containerized setup:**
 
 ```bash
 ./setup.sh
@@ -26,12 +47,6 @@ This single command will:
 - Launch complete monitoring stack (Prometheus, Grafana, Jaeger)
 - Begin running performance tests
 
-**Access your dashboards:**
-- **Grafana**: http://localhost:3000 (admin/admin)
-- **Prometheus**: http://localhost:9090
-- **Jaeger**: http://localhost:16686
-- **Metrics**: http://localhost:8000/metrics
-
 **Management commands:**
 ```bash
 ./status.sh    # Check if everything is running
@@ -39,6 +54,267 @@ This single command will:
 ```
 
 📖 **For detailed Docker setup**: See [DOCKER_SETUP.md](DOCKER_SETUP.md)
+
+## 🛠️ Local Development (Fast Iteration)
+
+**For developers who want to iterate quickly without Docker rebuilds:**
+
+### Setup Development Environment
+
+#### **Option 1: Complete Setup (First Time)**
+```bash
+# Automated setup (recommended)
+./scripts/dev-setup.sh
+
+# Or manual setup
+make dev-start
+```
+
+This will:
+- Start metrics stack (Redis, Prometheus, Grafana, Jaeger) in Docker
+- Install Python dependencies in virtual environment
+- Configure local environment (.env file)
+- Test the connection
+
+#### **Option 2: Quick Iteration Setup (Daily Development)**
+```bash
+# Start metrics stack only (faster)
+make dev-start-metrics-stack
+
+# Dependencies should already be installed from first-time setup
+# Now run tests repeatedly without restarting stack
+```
+
+### Access Services
+- **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
+- **📈 Prometheus**: http://localhost:9090 - Raw metrics and queries
+- **🔍 Jaeger**: http://localhost:16686 - Distributed tracing
+- **📡 Redis**: localhost:6379 - Database connection
+
+### Development Workflow
+
+#### **Quick Iteration (Recommended):**
+```bash
+# Start metrics stack once
+make dev-start-metrics-stack
+
+# Run tests repeatedly (edit code between runs)
+./venv/bin/python main.py run --workload-profile basic_rw --duration 30
+./venv/bin/python main.py run --workload-profile high_throughput --duration 60
+./venv/bin/python main.py run --workload-profile list_operations --duration 45
+
+# View real-time metrics in Grafana: http://localhost:3000
+```
+
+#### **Long-Running Tests (Unlimited Duration):**
+```bash
+# Start metrics stack once
+make dev-start-metrics-stack
+
+# Run unlimited tests (until Ctrl+C)
+./venv/bin/python main.py run --workload-profile basic_rw
+./venv/bin/python main.py run --workload-profile high_throughput
+
+# Monitor in real-time via Grafana: http://localhost:3000
+# Stop test with Ctrl+C when ready
+```
+
+#### **Alternative: Predefined Tests:**
+```bash
+# 60-second basic test (starts stack if needed)
+make dev-test
+
+# View real-time logs
+make dev-logs
+
+# Check service status
+make status
+```
+
+#### **Custom Test Examples:**
+
+**Basic Read/Write Operations:**
+```bash
+# 30-second test
+./venv/bin/python main.py run --workload-profile basic_rw --duration 30
+
+# Unlimited duration (until Ctrl+C)
+./venv/bin/python main.py run --workload-profile basic_rw
+```
+
+**High Throughput Testing:**
+```bash
+# 60-second high-load test
+./venv/bin/python main.py run --workload-profile high_throughput --duration 60 --threads-per-client 4
+
+# Unlimited high-load test (for sustained performance monitoring)
+./venv/bin/python main.py run --workload-profile high_throughput --threads-per-client 4
+```
+
+**List Operations:**
+```bash
+# 45-second list operations test
+./venv/bin/python main.py run --workload-profile list_operations --duration 45
+
+# Unlimited list operations (for memory usage monitoring)
+./venv/bin/python main.py run --workload-profile list_operations
+```
+
+**Async Mixed Workload:**
+```bash
+# 2-minute mixed workload test
+./venv/bin/python main.py run --workload-profile async_mixed --duration 120
+
+# Unlimited mixed workload (for long-term stability testing)
+./venv/bin/python main.py run --workload-profile async_mixed
+```
+
+**Custom Configuration:**
+```bash
+# Multiple clients with custom threading
+./venv/bin/python main.py run \
+  --workload-profile basic_rw \
+  --duration 300 \
+  --client-instances 2 \
+  --connections-per-client 10 \
+  --threads-per-client 3 \
+  --app-name python-dev \
+  --version test-v1
+```
+
+**Environment Variable Configuration:**
+```bash
+# Set via environment variables
+export TEST_DURATION=180
+export TEST_CLIENT_INSTANCES=3
+export APP_NAME=python-custom
+./venv/bin/python main.py run --workload-profile high_throughput
+```
+
+### Available Make Commands
+```bash
+make help                    # Show all available commands
+make dev-start               # Start complete development environment (first time)
+make dev-start-metrics-stack # Start metrics stack only (quick iteration)
+make dev-test                # Run quick test (60 seconds)
+make dev-stop                # Stop metrics stack
+make dev-logs                # View metrics stack logs
+make status                  # Check service status
+make install-deps            # Install Python dependencies
+make build                   # Build Docker images
+make clean                   # Clean up everything
+```
+
+### Monitoring Your Tests
+
+**Real-time Grafana Dashboard:**
+- Operations per second (live updates)
+- Latency percentiles (95th, 50th, average)
+- Error rates and success percentages
+- Individual operation breakdowns (GET, SET, BATCH)
+- Filterable by app name, version, and operation type
+
+**Unlimited Test Monitoring:**
+```bash
+# Start long-running test in background
+./venv/bin/python main.py run --workload-profile high_throughput &
+
+# Monitor in real-time
+echo "Monitor at: http://localhost:3000"
+echo "Stop test with: kill %1"
+
+# Or run in foreground and stop with Ctrl+C
+./venv/bin/python main.py run --workload-profile basic_rw
+# Press Ctrl+C when ready to stop
+```
+
+**Stop Development Environment:**
+```bash
+make dev-stop
+```
+
+## 📋 Workload Profiles & Configuration
+
+### Available Workload Profiles
+
+| Profile | Description | Operations | Use Case |
+|---------|-------------|------------|----------|
+| `basic_rw` | Basic read/write operations | GET, SET, DEL | General testing, development |
+| `high_throughput` | Pipeline-based operations | Batched SET, GET, INCR | Performance testing, load testing |
+| `list_operations` | Redis list operations | LPUSH, LRANGE, LPOP | List-specific workloads |
+| `async_mixed` | Mixed async operations | GET, SET, INCR, DEL | Async pattern testing |
+
+### Configuration Options
+
+#### **CLI Parameters:**
+```bash
+--workload-profile PROFILE    # Workload type (required)
+--duration SECONDS           # Test duration (default: unlimited)
+--client-instances N         # Number of client pools (default: 1)
+--connections-per-client N   # Connections per pool (default: 5)
+--threads-per-client N       # Worker threads per pool (default: 2)
+--app-name NAME             # Application identifier (default: python-local)
+--version VERSION           # Version label (default: dev)
+--host HOST                 # Redis host (default: localhost)
+--port PORT                 # Redis port (default: 6379)
+--quiet                     # Minimal output
+```
+
+#### **Environment Variables:**
+```bash
+# Redis Connection
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# Test Configuration
+TEST_DURATION=300
+TEST_CLIENT_INSTANCES=2
+TEST_CONNECTIONS_PER_CLIENT=10
+TEST_THREADS_PER_CLIENT=3
+
+# Application Identity
+APP_NAME=python-dev
+INSTANCE_ID=dev-instance-1
+VERSION=v1.0.0
+
+# OpenTelemetry
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+```
+
+### Performance Tuning Examples
+
+**Low Resource Testing:**
+```bash
+./venv/bin/python main.py run \
+  --workload-profile basic_rw \
+  --duration 60 \
+  --client-instances 1 \
+  --connections-per-client 2 \
+  --threads-per-client 1
+```
+
+**High Load Testing:**
+```bash
+./venv/bin/python main.py run \
+  --workload-profile high_throughput \
+  --duration 300 \
+  --client-instances 3 \
+  --connections-per-client 15 \
+  --threads-per-client 5
+```
+
+**Memory Usage Testing:**
+```bash
+./venv/bin/python main.py run \
+  --workload-profile list_operations \
+  --duration 600 \
+  --client-instances 2 \
+  --connections-per-client 8 \
+  --threads-per-client 3
+```
 
 ## Manual Installation
 
@@ -156,6 +432,50 @@ python main.py run \
 - **JSON export** for custom analysis with `--output-file`
 - **Comprehensive logging** with configurable levels
 
+## ☁️ Production Deployment
+
+**TODO: Complete production deployment documentation**
+
+The application is designed for cloud deployment with:
+
+### **Available Infrastructure:**
+- **✅ GitHub Actions CI/CD** pipeline (`.github/workflows/ci.yml`)
+- **✅ Kubernetes templates** (`k8s/` directory)
+- **✅ Docker images** for all workload types
+- **✅ Helm chart structure** (planned)
+
+### **Deployment Commands (Ready):**
+```bash
+# Build and push images
+make build push
+
+# Deploy to environments
+make deploy-dev    # Development environment
+make deploy-prod   # Production environment
+```
+
+### **Cloud Platforms:**
+- **AWS EKS** - Kubernetes deployment
+- **Google GKE** - Container orchestration
+- **Azure AKS** - Managed Kubernetes
+- **Docker Swarm** - Simple container orchestration
+
+### **Monitoring Stack:**
+- **Prometheus** - Metrics collection
+- **Grafana** - Dashboards and visualization
+- **Jaeger** - Distributed tracing
+- **OpenTelemetry** - Observability framework
+
+**📋 TODO Items:**
+- [ ] Complete Kubernetes manifests
+- [ ] Helm chart implementation
+- [ ] Cloud-specific deployment guides
+- [ ] Production environment configuration
+- [ ] Scaling and resource management
+- [ ] Security and secrets management
+- [ ] Multi-region deployment
+- [ ] Disaster recovery procedures
+
 ## Core Files
 
 - `main.py` - Entry point and CLI interface
@@ -167,3 +487,6 @@ python main.py run \
 - `logger.py` - Logging configuration
 - `requirements.txt` - Python dependencies
 - `.env.example` - Environment variables template
+- `Makefile` - Development and deployment commands
+- `docker-compose.yml` - Full containerized environment
+- `docker-compose.metrics.yml` - Metrics stack only (for local dev)

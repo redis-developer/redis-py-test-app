@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-from config import RunnerConfig, TestConfig, RedisConnectionConfig, WorkloadConfig, WorkloadProfiles
+from config import RunnerConfig, TestConfig, RedisConnectionConfig, WorkloadConfig, WorkloadProfiles, get_redis_version
 from test_runner import TestRunner
 
 # Load environment variables from .env file
@@ -88,6 +88,7 @@ def cli():
 @click.option('--otel-export-interval', type=int, default=lambda: get_env_or_default('OTEL_EXPORT_INTERVAL', 5000, int), help='OpenTelemetry export interval in milliseconds')
 @click.option('--app-name', default=lambda: get_env_or_default('APP_NAME', 'python'), help='Application name for multi-app filtering (python, go, java, etc.)')
 @click.option('--instance-id', default=lambda: get_env_or_default('INSTANCE_ID', None), help='Unique instance identifier')
+@click.option('--version', default=lambda: get_env_or_default('VERSION', None), help='Version identifier (defaults to redis-py package version)')
 @click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for metrics export (JSON)')
 @click.option('--quiet', is_flag=True, default=lambda: get_env_or_default('QUIET', False, bool), help='Suppress periodic stats output')
 @click.option('--config-file', default=lambda: get_env_or_default('CONFIG_FILE', None), help='Load configuration from YAML/JSON file')
@@ -294,6 +295,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         clients=kwargs['client_instances'],
         connections_per_client=kwargs['connections_per_client'],
         threads_per_connection=kwargs['threads_per_client'],
+        duration=kwargs['duration'],  # Add duration support
         workload=workload_config
     )
 
@@ -313,7 +315,8 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         otel_service_name=kwargs['otel_service_name'],
         otel_export_interval_ms=kwargs['otel_export_interval'],
         app_name=kwargs['app_name'],
-        instance_id=kwargs['instance_id']
+        instance_id=kwargs['instance_id'],
+        version=kwargs['version'] or get_redis_version()
     )
 
     return config

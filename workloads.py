@@ -200,16 +200,17 @@ class ListWorkload(BaseWorkload):
 
 
 class PipelineWorkload(BaseWorkload):
-    """Pipeline operations for batch processing."""
-    
+    """Pipeline operations for batch processing with individual operation metrics."""
+
     def execute_operation(self) -> int:
-        """Execute a batch of operations using pipeline."""
+        """Execute a batch of operations using pipeline with individual metrics tracking."""
         try:
             pipe = self.client.pipeline(transaction=False)
 
-            # Add multiple operations to pipeline
+            # Add multiple operations to pipeline and track them individually
             pipeline_size = self.config.get_option("pipelineSize", 10)
             operations_added = 0
+            operation_list = []  # Track operations for individual metrics
 
             for _ in range(pipeline_size):
                 operation = self._choose_operation()
@@ -219,20 +220,31 @@ class PipelineWorkload(BaseWorkload):
                     value = self._generate_value()
                     pipe.set(key, value)
                     operations_added += 1
+                    operation_list.append(operation)
 
                 elif operation == "GET":
                     key = self._generate_key()
                     pipe.get(key)
                     operations_added += 1
+                    operation_list.append(operation)
 
                 elif operation == "INCR":
                     key = self._generate_key()
                     pipe.incr(key)
                     operations_added += 1
+                    operation_list.append(operation)
 
             # Execute pipeline only if we have operations
             if operations_added > 0:
+                start_time = time.time()
                 result = pipe.execute()
+                duration = time.time() - start_time
+
+                # Record individual operation metrics
+                avg_duration = duration / operations_added if operations_added > 0 else 0
+                for operation in operation_list:
+                    self.metrics.record_operation(operation, avg_duration, True)
+
                 return operations_added  # Return number of operations executed
             else:
                 self.logger.warning(f"No operations added to pipeline. Available operations: {self.config.get_option('operations', [])}")

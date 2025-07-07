@@ -31,7 +31,8 @@ class TestRunner:
             service_version=config.otel_service_version,
             otel_export_interval_ms=config.otel_export_interval_ms,
             app_name=config.app_name,
-            instance_id=config.instance_id
+            instance_id=config.instance_id,
+            version=config.version
         )
         
         # Test control
@@ -191,14 +192,11 @@ class TestRunner:
                         f"{self.config.test.connections_per_client} connections/client, "
                         f"{self.config.test.threads_per_client} threads/client")
 
-        # Note: target_ops_per_second and duration are not in current config structure
-        # if self.config.target_ops_per_second:
-        #     self.logger.info(f"Target throughput: {self.config.target_ops_per_second:,} ops/sec")
-
-        # if self.config.duration:
-        #     self.logger.info(f"Test duration: {self.config.duration} seconds")
-        # else:
-        self.logger.info("Test duration: unlimited (until interrupted)")
+        # Log duration configuration
+        if self.config.test.duration:
+            self.logger.info(f"Test duration: {self.config.test.duration} seconds")
+        else:
+            self.logger.info("Test duration: unlimited (until interrupted)")
         
         try:
             # Create client pools
@@ -227,20 +225,29 @@ class TestRunner:
             
             total_threads = len(self._workload_threads)
             self.logger.info(f"Started {total_threads} worker threads")
-            
+
             # Wait for completion or interruption
-            # Note: duration is not in current config structure, so wait for interruption
-            # if self.config.duration:
-            #     # Wait for specified duration
-            #     time.sleep(self.config.duration)
-            #     self.logger.info("Test duration completed")
-            # else:
-            # Wait for interruption
-            try:
-                while not self._stop_event.is_set():
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                self.logger.info("Test interrupted by user")
+            if self.config.test.duration:
+                # Wait for specified duration
+                self.logger.info(f"Running test for {self.config.test.duration} seconds...")
+                try:
+                    # Check stop event every second while waiting for duration
+                    start_time = time.time()
+                    while not self._stop_event.is_set():
+                        elapsed = time.time() - start_time
+                        if elapsed >= self.config.test.duration:
+                            self.logger.info("Test duration completed")
+                            break
+                        time.sleep(min(1, self.config.test.duration - elapsed))
+                except KeyboardInterrupt:
+                    self.logger.info("Test interrupted by user")
+            else:
+                # Wait for interruption (unlimited duration)
+                try:
+                    while not self._stop_event.is_set():
+                        time.sleep(1)
+                except KeyboardInterrupt:
+                    self.logger.info("Test interrupted by user")
             
         except Exception as e:
             self.logger.error(f"Error during test execution: {e}")

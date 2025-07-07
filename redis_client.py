@@ -313,11 +313,11 @@ class RedisClientManager:
         start_time = time.time()
         try:
             result = client_method(*args, **kwargs)
-            duration = time.time() - start_time
+            duration = max(0.0, time.time() - start_time)  # Ensure non-negative duration
             self.metrics.record_operation(operation_name, duration, True)
             return result
         except Exception as e:
-            duration = time.time() - start_time
+            duration = max(0.0, time.time() - start_time)  # Ensure non-negative duration
             self.metrics.record_operation(operation_name, duration, False, type(e).__name__)
             raise
 

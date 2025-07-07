@@ -24,7 +24,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
+# Note: RedisInstrumentor import removed to prevent automatic instrumentation
 
 from logger import get_logger
 
@@ -47,7 +47,7 @@ class MetricsCollector:
                  enable_otel: bool = True, otel_endpoint: str = None,
                  service_name: str = "redis-load-test", service_version: str = "1.0.0",
                  otel_export_interval_ms: int = 5000, app_name: str = "python",
-                 instance_id: str = None):
+                 instance_id: str = None, version: str = None):
         self.logger = get_logger()
         self.enable_prometheus = enable_prometheus
         self.prometheus_port = prometheus_port
@@ -57,7 +57,8 @@ class MetricsCollector:
         self.service_version = service_version
         self.otel_export_interval_ms = otel_export_interval_ms
         self.app_name = app_name
-        self.instance_id = instance_id or f"{service_name}-{int(time.time())}"
+        self.instance_id = instance_id or f"{app_name}-{int(time.time())}"
+        self.version = version or "unknown"
 
         # Thread-safe metrics storage
         self._lock = threading.RLock()
@@ -71,23 +72,17 @@ class MetricsCollector:
         self._reconnection_count = 0
         self._reconnection_duration = 0.0
 
-        # OpenTelemetry setup
+        # OpenTelemetry setup (single collection method)
         if self.enable_otel:
             self._setup_opentelemetry()
-
-        # Prometheus metrics (for backward compatibility)
-        if self.enable_prometheus:
-            self._setup_prometheus_metrics()
-            self._start_prometheus_server()
 
     def _setup_opentelemetry(self):
         """Setup OpenTelemetry metrics and tracing."""
         try:
-            # Create resource with service information
+            # Create resource with minimal service information to reduce label duplication
             resource = Resource.create({
-                "service.name": self.service_name,
-                "service.version": self.service_version,
-                "deployment.environment": "docker"
+                "service.name": self.app_name,  # Use app_name instead of service_name
+                "service.version": self.version
             })
 
             # Setup metrics
@@ -115,6 +110,7 @@ class MetricsCollector:
             # Get meter and create instruments
             self.meter = otel_metrics.get_meter(self.service_name, self.service_version)
 
+            # Redis operations metrics
             self.otel_operations_counter = self.meter.create_counter(
                 name="redis_operations_total",
                 description="Total number of Redis operations",
@@ -122,9 +118,21 @@ class MetricsCollector:
             )
 
             self.otel_operation_duration = self.meter.create_histogram(
-                name="redis_operation_duration",
-                description="Duration of Redis operations",
-                unit="s"
+                name="redis_operation_duration_ms",
+                description="Duration of Redis operations in milliseconds",
+                unit="1"
+            )
+
+            self.otel_connections_counter = self.meter.create_counter(
+                name="redis_connections_total",
+                description="Total number of Redis connection attempts",
+                unit="1"
+            )
+
+            self.otel_reconnection_duration = self.meter.create_histogram(
+                name="redis_reconnection_duration_ms",
+                description="Duration of Redis reconnection attempts in milliseconds",
+                unit="1"
             )
 
             # Setup tracing
@@ -140,8 +148,9 @@ class MetricsCollector:
                 otel_trace.set_tracer_provider(trace_provider)
                 self.tracer = otel_trace.get_tracer(self.service_name, self.service_version)
 
-            # Instrument Redis
-            RedisInstrumentor().instrument()
+            # Note: Using manual instrumentation instead of automatic Redis instrumentation
+            # to have full control over operation labeling and avoid "BATCH" aggregation
+            # RedisInstrumentor().instrument() is NOT called to prevent operation aggregation
 
             self.logger.info(f"OpenTelemetry setup completed with endpoint: {self.otel_endpoint}")
 
@@ -190,21 +199,14 @@ class MetricsCollector:
             buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0]
         )
 
-        # 5. Throughput (operations per second)
-        self.prom_throughput = Gauge(
-            'redis_operations_per_second',
-            'Current operations per second',
-            base_labels
-        )
-
-        # 6. Error rate percentage
+        # 5. Error rate percentage
         self.prom_error_rate = Gauge(
             'redis_error_rate_percent',
             'Current error rate percentage',
             base_labels
         )
 
-        # 7. Average latency gauge (for quick overview)
+        # 6. Average latency gauge (for quick overview)
         self.prom_avg_latency = Gauge(
             'redis_average_latency_seconds',
             'Average operation latency',
@@ -235,38 +237,31 @@ class MetricsCollector:
                 if error_type:
                     metrics.errors_by_type[error_type] += 1
 
-        # Update OpenTelemetry metrics
+        # Update OpenTelemetry metrics with cleaned-up labels
         if self.enable_otel and hasattr(self, 'otel_operations_counter'):
             status = 'success' if success else 'error'
-            self.otel_operations_counter.add(1, {
+            labels = {
                 "operation": operation,
                 "status": status,
+                "app_name": self.app_name,
+                "instance_id": self.instance_id,
+                "version": self.version,
                 "error_type": error_type or "none"
-            })
-            self.otel_operation_duration.record(duration, {
-                "operation": operation,
-                "status": status
-            })
-
-        # Update Prometheus metrics with app identification
-        if self.enable_prometheus and hasattr(self, 'prom_operations_total'):
-            status = 'success' if success else 'error'
-            labels = {
-                'operation': operation,
-                'status': status,
-                'app_name': self.app_name,
-                'service_name': self.service_name,
-                'instance_id': self.instance_id
             }
-            self.prom_operations_total.labels(**labels).inc()
+            self.otel_operations_counter.add(1, labels)
 
             duration_labels = {
-                'operation': operation,
-                'app_name': self.app_name,
-                'service_name': self.service_name,
-                'instance_id': self.instance_id
+                "operation": operation,
+                "status": status,
+                "app_name": self.app_name,
+                "instance_id": self.instance_id,
+                "version": self.version
             }
-            self.prom_operation_duration.labels(**duration_labels).observe(duration)
+            # Convert duration from seconds to milliseconds
+            duration_ms = duration * 1000
+            self.otel_operation_duration.record(duration_ms, duration_labels)
+
+        # Metrics are now only collected via OpenTelemetry (OTLP push)
     
     def record_connection_attempt(self, success: bool):
         """Record connection attempt."""
@@ -275,21 +270,18 @@ class MetricsCollector:
             if not success:
                 self._connection_failures += 1
 
-        # Update OpenTelemetry metrics
+        # Update OpenTelemetry metrics with cleaned-up labels
         if self.enable_otel and hasattr(self, 'otel_connections_counter'):
             status = 'success' if success else 'error'
-            self.otel_connections_counter.add(1, {"status": status})
-
-        # Update Prometheus metrics with app identification
-        if self.enable_prometheus and hasattr(self, 'prom_connections_total'):
-            status = 'success' if success else 'error'
             labels = {
-                'status': status,
-                'app_name': self.app_name,
-                'service_name': self.service_name,
-                'instance_id': self.instance_id
+                "status": status,
+                "app_name": self.app_name,
+                "instance_id": self.instance_id,
+                "version": self.version
             }
-            self.prom_connections_total.labels(**labels).inc()
+            self.otel_connections_counter.add(1, labels)
+
+        # Connection metrics collected via OpenTelemetry only
 
     def record_reconnection(self, duration: float):
         """Record reconnection event."""
@@ -297,9 +289,16 @@ class MetricsCollector:
             self._reconnection_count += 1
             self._reconnection_duration += duration
 
-        # Update OpenTelemetry metrics
+        # Update OpenTelemetry metrics with cleaned-up labels
         if self.enable_otel and hasattr(self, 'otel_reconnection_duration'):
-            self.otel_reconnection_duration.record(duration)
+            labels = {
+                "app_name": self.app_name,
+                "instance_id": self.instance_id,
+                "version": self.version
+            }
+            # Convert duration from seconds to milliseconds
+            duration_ms = duration * 1000
+            self.otel_reconnection_duration.record(duration_ms, labels)
 
         # Update Prometheus metrics with app identification
         if self.enable_prometheus and hasattr(self, 'prom_reconnection_duration'):
@@ -316,18 +315,11 @@ class MetricsCollector:
         if self.enable_otel and hasattr(self, 'otel_active_connections'):
             self.otel_active_connections.add(count)
 
-        # Update Prometheus metrics with app identification
-        if self.enable_prometheus and hasattr(self, 'prom_active_connections'):
-            labels = {
-                'app_name': self.app_name,
-                'service_name': self.service_name,
-                'instance_id': self.instance_id
-            }
-            self.prom_active_connections.labels(**labels).set(count)
+        # Active connections tracked via OpenTelemetry only
 
     def update_calculated_metrics(self):
         """Update calculated metrics like throughput, error rate, and average latency."""
-        if not self.enable_prometheus:
+        if not self.enable_otel:
             return
 
         with self._lock:
@@ -349,19 +341,12 @@ class MetricsCollector:
                     if time_diff > 0:
                         ops_diff = total_ops - getattr(self, '_last_total_ops', 0)
                         current_throughput = ops_diff / time_diff
-                        self.prom_throughput.labels(**base_labels).set(current_throughput)
+                        # Calculated metrics are now handled by the OpenTelemetry Collector
+                        # which exposes them via its Prometheus endpoint
 
-                # Calculate error rate
+                # Error rate and average latency calculations
                 error_rate = (total_errors / total_ops) * 100
-                self.prom_error_rate.labels(**base_labels).set(error_rate)
-
-                # Calculate average latency per operation
-                for operation, metrics in self._metrics.items():
-                    if metrics.total_count > 0:
-                        avg_latency = metrics.total_duration / metrics.total_count
-                        op_labels = dict(base_labels)
-                        op_labels['operation'] = operation
-                        self.prom_avg_latency.labels(**op_labels).set(avg_latency)
+                # These calculated metrics are available via the collector's Prometheus endpoint
 
             # Store for next calculation
             self._last_metrics_update = current_time
@@ -503,7 +488,7 @@ def setup_metrics(enable_prometheus: bool = True, prometheus_port: int = 8000,
                  enable_otel: bool = True, otel_endpoint: str = None,
                  service_name: str = "redis-load-test", service_version: str = "1.0.0",
                  otel_export_interval_ms: int = 5000, app_name: str = "python",
-                 instance_id: str = None) -> MetricsCollector:
+                 instance_id: str = None, version: str = None) -> MetricsCollector:
     """Setup global metrics collector with multi-app support."""
     global _metrics_collector
     _metrics_collector = MetricsCollector(
@@ -515,6 +500,7 @@ def setup_metrics(enable_prometheus: bool = True, prometheus_port: int = 8000,
         service_version=service_version,
         otel_export_interval_ms=otel_export_interval_ms,
         app_name=app_name,
-        instance_id=instance_id
+        instance_id=instance_id,
+        version=version
     )
     return _metrics_collector

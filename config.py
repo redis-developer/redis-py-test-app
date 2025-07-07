@@ -5,6 +5,70 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 import yaml
 import json
+import importlib.metadata
+import re
+
+
+def get_redis_version() -> str:
+    """Get the version of the redis-py package."""
+    try:
+        return importlib.metadata.version('redis')
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+
+def parse_duration(duration_str: str) -> int:
+    """
+    Parse ISO 8601 duration format (PT1M, PT30S, PT1H30M) to seconds.
+    Also supports simple integer strings for seconds.
+
+    Args:
+        duration_str: Duration string (e.g., "PT1M", "PT30S", "60")
+
+    Returns:
+        Duration in seconds
+
+    Examples:
+        parse_duration("PT1M") -> 60
+        parse_duration("PT30S") -> 30
+        parse_duration("PT1H30M") -> 5400
+        parse_duration("60") -> 60
+    """
+    if not duration_str:
+        return 0
+
+    # Handle simple integer strings (seconds)
+    if duration_str.isdigit():
+        return int(duration_str)
+
+    # Handle ISO 8601 format (PT1H30M45S)
+    if not duration_str.startswith('PT'):
+        raise ValueError(f"Invalid duration format: {duration_str}")
+
+    # Remove PT prefix
+    duration_str = duration_str[2:]
+
+    # Parse hours, minutes, seconds
+    hours = 0
+    minutes = 0
+    seconds = 0
+
+    # Extract hours
+    hour_match = re.search(r'(\d+)H', duration_str)
+    if hour_match:
+        hours = int(hour_match.group(1))
+
+    # Extract minutes
+    minute_match = re.search(r'(\d+)M', duration_str)
+    if minute_match:
+        minutes = int(minute_match.group(1))
+
+    # Extract seconds
+    second_match = re.search(r'(\d+)S', duration_str)
+    if second_match:
+        seconds = int(second_match.group(1))
+
+    return hours * 3600 + minutes * 60 + seconds
 
 
 @dataclass
@@ -100,6 +164,9 @@ class TestConfig:
     connections_per_client: int = 1  # Number of connections per client
     threads_per_connection: int = 1  # Number of threads sharing same connection
 
+    # Test duration (None = unlimited, integer = seconds)
+    duration: Optional[int] = None  # Duration in seconds, None for unlimited
+
     # Workload configuration
     workload: WorkloadConfig = field(default_factory=WorkloadConfig)
 
@@ -141,6 +208,7 @@ class RunnerConfig:
     # Multi-app identification
     app_name: str = "python"
     instance_id: Optional[str] = None
+    version: Optional[str] = None  # Redis client version or custom version
 
 
 class WorkloadProfiles:
