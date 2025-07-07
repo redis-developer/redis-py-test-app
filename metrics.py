@@ -12,19 +12,15 @@ import os
 import uuid
 
 # Prometheus imports (for backward compatibility)
-from prometheus_client import Counter, Histogram, Gauge, start_http_server
+from prometheus_client import Counter, Histogram, Gauge
 
 # OpenTelemetry imports
 from opentelemetry import metrics as otel_metrics
-from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 # Note: RedisInstrumentor import removed to prevent automatic instrumentation
 
 from logger import get_logger
@@ -136,18 +132,7 @@ class MetricsCollector:
                 unit="1"
             )
 
-            # Setup tracing
-            if self.otel_endpoint:
-                trace_exporter = OTLPSpanExporter(
-                    endpoint=self.otel_endpoint,
-                    insecure=True
-                )
-                trace_provider = TracerProvider(resource=resource)
-                trace_provider.add_span_processor(
-                    BatchSpanProcessor(trace_exporter)
-                )
-                otel_trace.set_tracer_provider(trace_provider)
-                self.tracer = otel_trace.get_tracer(self.service_name, self.service_version)
+
 
             # Note: Using manual instrumentation instead of automatic Redis instrumentation
             # to have full control over operation labeling and avoid "BATCH" aggregation
@@ -214,14 +199,7 @@ class MetricsCollector:
             ['operation'] + base_labels
         )
     
-    def _start_prometheus_server(self):
-        """Start Prometheus metrics server."""
-        try:
-            start_http_server(self.prometheus_port)
-            self.logger.info(f"Prometheus metrics server started on port {self.prometheus_port}")
-        except Exception as e:
-            self.logger.error(f"Failed to start Prometheus server: {e}")
-            self.enable_prometheus = False
+
     
     def record_operation(self, operation: str, duration: float, success: bool, error_type: str = None):
         """Record metrics for a Redis operation."""
@@ -318,50 +296,9 @@ class MetricsCollector:
 
         # Active connections tracked via OpenTelemetry only
 
-    def update_calculated_metrics(self):
-        """Update calculated metrics like throughput, error rate, and average latency."""
-        if not self.enable_otel:
-            return
 
-        with self._lock:
-            # Calculate overall throughput and error rate
-            total_ops = sum(m.total_count for m in self._metrics.values())
-            total_errors = sum(m.error_count for m in self._metrics.values())
 
-            if total_ops > 0:
-                # Calculate current throughput (ops in last interval)
-                current_time = time.time()
-                if hasattr(self, '_last_metrics_update'):
-                    time_diff = current_time - self._last_metrics_update
-                    if time_diff > 0:
-                        ops_diff = total_ops - getattr(self, '_last_total_ops', 0)
-                        current_throughput = ops_diff / time_diff
-                        # Calculated metrics are now handled by the OpenTelemetry Collector
-                        # which exposes them via its Prometheus endpoint
 
-                # Error rate and average latency calculations
-                error_rate = (total_errors / total_ops) * 100
-                # These calculated metrics are available via the collector's Prometheus endpoint
-
-            # Store for next calculation
-            self._last_metrics_update = current_time
-            self._last_total_ops = total_ops
-
-    def create_span(self, operation_name: str, **attributes):
-        """Create an OpenTelemetry span for tracing Redis operations."""
-        if self.enable_otel and hasattr(self, 'tracer'):
-            return self.tracer.start_span(
-                name=f"redis.{operation_name}",
-                attributes={
-                    "db.system": "redis",
-                    "db.operation": operation_name,
-                    **attributes
-                }
-            )
-        else:
-            # Return a no-op context manager if OpenTelemetry is not enabled
-            from contextlib import nullcontext
-            return nullcontext()
     
     def get_operation_stats(self, operation: str) -> Dict:
         """Get statistics for a specific operation."""

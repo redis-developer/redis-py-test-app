@@ -213,7 +213,7 @@ def test_connection():
         client = RedisClientManager(redis_config)
         
         # Test basic operations
-        client.execute_command('ping')
+        client.ping()
         info = client.get_info()
         
         click.echo("✓ Redis connection successful!")

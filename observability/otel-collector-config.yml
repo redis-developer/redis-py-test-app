@@ -22,11 +22,7 @@ exporters:
     endpoint: "0.0.0.0:8889"
     # Remove const_labels to avoid duplication
   
-  # OTLP exporter for Jaeger (using internal Docker network)
-  otlp/jaeger:
-    endpoint: jaeger:4317
-    tls:
-      insecure: true
+
   
   # Debug exporter for debugging (replaces deprecated logging exporter)
   debug:
@@ -34,10 +30,7 @@ exporters:
 
 service:
   pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp/jaeger, debug]
+
 
     metrics:
       receivers: [otlp]

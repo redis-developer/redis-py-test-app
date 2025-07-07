@@ -31,7 +31,6 @@ python main.py run --workload-profile basic_rw # unlimited test run
 **Access your dashboards:**
 - **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
 - **📈 Prometheus**: http://localhost:9090 - Raw metrics
-- **🔍 Jaeger**: http://localhost:16686 - Distributed tracing
 
 ### 🐳 Full Docker Environment
 
@@ -44,7 +43,7 @@ python main.py run --workload-profile basic_rw # unlimited test run
 This single command will:
 - Build the Redis test application
 - Start Redis database
-- Launch complete monitoring stack (Prometheus, Grafana, Jaeger)
+- Launch complete monitoring stack (Prometheus, Grafana)
 - Begin running performance tests
 
 **Management commands:**
@@ -71,7 +70,7 @@ make dev-start
 ```
 
 This will:
-- Start metrics stack (Redis, Prometheus, Grafana, Jaeger) in Docker
+- Start metrics stack (Redis, Prometheus, Grafana) in Docker
 - Install Python dependencies in virtual environment
 - Configure local environment (.env file)
 - Test the connection
@@ -88,7 +87,6 @@ make dev-start-metrics-stack
 ### Access Services
 - **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
 - **📈 Prometheus**: http://localhost:9090 - Raw metrics and queries
-- **🔍 Jaeger**: http://localhost:16686 - Distributed tracing
 - **📡 Redis**: localhost:6379 - Database connection
 
 ### Development Workflow
@@ -474,7 +472,6 @@ make deploy-prod   # Production environment
 ### **Monitoring Stack:**
 - **Prometheus** - Metrics collection
 - **Grafana** - Dashboards and visualization
-- **Jaeger** - Distributed tracing
 - **OpenTelemetry** - Observability framework
 
 **📋 TODO Items:**

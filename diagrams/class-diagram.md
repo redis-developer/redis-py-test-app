@@ -128,7 +128,7 @@ classDiagram
         +publish(channel: str, message: str) int
         +pubsub() PubSub
         +pipeline() Pipeline
-        +execute_command(command: str, *args) Any
+
         +ping() bool
         +close() void
     }
@@ -272,7 +272,7 @@ classDiagram
         +record_connection_attempt(success: bool) void
         +record_reconnection(duration: float) void
         +update_active_connections(count: int) void
-        +update_calculated_metrics() void
+
         +get_stats() Dict[str,Any]
         +get_detailed_stats() Dict[str,Any]
         +reset_stats() void
