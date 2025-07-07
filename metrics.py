@@ -323,12 +323,6 @@ class MetricsCollector:
             return
 
         with self._lock:
-            base_labels = {
-                'app_name': self.app_name,
-                'service_name': self.service_name,
-                'instance_id': self.instance_id
-            }
-
             # Calculate overall throughput and error rate
             total_ops = sum(m.total_count for m in self._metrics.values())
             total_errors = sum(m.error_count for m in self._metrics.values())

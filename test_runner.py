@@ -111,16 +111,16 @@ class TestRunner:
                     ops_executed = workload.execute_operation()
                     end_op_time = time.time()
 
-                    # Record metrics for each operation executed
-                    if ops_executed > 0:
-                        operation_duration = (end_op_time - start_op_time) / ops_executed
-                        for _ in range(ops_executed):
-                            self.metrics.record_operation("BATCH", operation_duration, True)
-                        operation_count += ops_executed
-                    else:
-                        # Record failed operation
-                        operation_duration = end_op_time - start_op_time
-                        self.metrics.record_operation("BATCH", operation_duration, False, "Operation failed")
+                    # # Record metrics for each operation executed
+                    # if ops_executed > 0:
+                    #     operation_duration = (end_op_time - start_op_time) / ops_executed
+                    #     for _ in range(ops_executed):
+                    #         self.metrics.record_operation("BATCH", operation_duration, True)
+                    #     operation_count += ops_executed
+                    # else:
+                    #     # Record failed operation
+                    #     operation_duration = end_op_time - start_op_time
+                    #     self.metrics.record_operation("BATCH", operation_duration, False, "Operation failed")
                     
                     # Rate limiting
                     if thread_target_ops:
