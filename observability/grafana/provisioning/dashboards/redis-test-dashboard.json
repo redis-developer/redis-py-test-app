@@ -90,7 +90,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) by (operation, status)",
+          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[10s])) by (operation, status)",
           "interval": "",
           "legendFormat": "{{operation}} - {{status}}",
           "refId": "A"
@@ -454,7 +454,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(redis_operations_total{status=\"error\", app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) or vector(0)) / (sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[5m])) or vector(1)) * 100",
+          "expr": "(sum(rate(redis_operations_total{status=\"error\", app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[10s])) or vector(0)) / (sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=~\"$operation\", version=~\"$version\"}[10s])) or vector(1)) * 100",
           "interval": "",
           "legendFormat": "Error Rate %",
           "refId": "A"
@@ -535,7 +535,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=\"GET\", version=~\"$version\"}[5m])) by (status)",
+          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=\"GET\", version=~\"$version\"}[10s])) by (status)",
           "interval": "",
           "legendFormat": "GET - {{status}}",
           "refId": "A"
@@ -616,7 +616,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=\"SET\", version=~\"$version\"}[5m])) by (status)",
+          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation=\"SET\", version=~\"$version\"}[10s])) by (status)",
           "interval": "",
           "legendFormat": "SET - {{status}}",
           "refId": "A"
@@ -697,7 +697,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation!~\"GET|SET\", version=~\"$version\"}[5m])) by (operation, status)",
+          "expr": "sum(rate(redis_operations_total{app_name=~\"$app_name\", instance_id=~\"$instance_id\", operation!~\"GET|SET\", version=~\"$version\"}[10s])) by (operation, status)",
           "interval": "",
           "legendFormat": "{{operation}} - {{status}}",
           "refId": "A"
