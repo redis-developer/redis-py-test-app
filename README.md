@@ -1,26 +1,37 @@
-# Redis Load Testing Application
+# Redis Python Test Application
 
-A comprehensive Redis load testing tool designed to simulate high-volume operations for testing client resilience during database upgrades. Built with Python and redis-py, this application can generate 50K+ operations per second with comprehensive observability.
+A high-performance Redis load testing application built with Python and redis-py. Designed to simulate high-volume operations for testing client resilience during database upgrades, capable of generating 50K+ operations per second with comprehensive observability.
 
 ## Features
 
 - **High throughput** through multi-threaded architecture
 - **Standalone & Cluster Redis** support with TLS/SSL
 - **Intuitive workload profiles** with descriptive names
-- **Comprehensive observability** with Prometheus metrics
+- **OpenTelemetry metrics** for observability
 - **Environment variable configuration** with python-dotenv
 - **Connection resilience** with auto-reconnect and retry logic
 - **CLI interface** with extensive configuration options
 
 ## 🚀 Quick Start
 
-### 🛠️ Local Development (Recommended)
+### Prerequisites
 
-**Fast iteration with metrics stack in Docker + Python app running locally:**
+You'll need the **Redis Metrics Stack** running to collect and visualize metrics:
 
 ```bash
-# Start metrics stack (once)
-make dev-start-metrics-stack
+# Clone and start the metrics stack (separate repository)
+git clone <redis-metrics-stack-repo>
+cd redis-metrics-stack
+make start
+```
+
+### 🛠️ Local Development (Recommended)
+
+**Fast iteration with external metrics stack:**
+
+```bash
+# Install dependencies
+make install-deps
 
 # Run tests repeatedly (fast iteration)
 python main.py run --workload-profile basic_rw --duration 30
@@ -28,63 +39,42 @@ python main.py run --workload-profile high_throughput --duration 60
 python main.py run --workload-profile basic_rw # unlimited test run
 ```
 
-**Access your dashboards:**
+**Access your dashboards (from metrics stack):**
 - **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
 - **📈 Prometheus**: http://localhost:9090 - Raw metrics
 
-### 🐳 Full Docker Environment
+### 🐳 Docker Environment
 
-**For testing complete containerized setup:**
+**For testing containerized setup:**
 
 ```bash
-./setup.sh
+# Build the application
+make build
+
+# Run with Docker (requires external metrics stack)
+docker run --network redis-test-network \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 \
+  redis-py-test-app \
+  python main.py run --workload-profile basic_rw --duration 60
 ```
 
-This single command will:
-- Build the Redis test application
-- Start Redis database
-- Launch complete monitoring stack (Prometheus, Grafana)
-- Begin running performance tests
-
-**Management commands:**
-```bash
-./status.sh    # Check if everything is running
-./cleanup.sh   # Stop and clean up everything
-```
-
-📖 **For detailed Docker setup**: See [DOCKER_SETUP.md](DOCKER_SETUP.md)
-
-## 🛠️ Local Development (Fast Iteration)
-
-**For developers who want to iterate quickly without Docker rebuilds:**
+## 🛠️ Local Development
 
 ### Setup Development Environment
 
-#### **Option 1: Complete Setup (First Time)**
 ```bash
-# Automated setup (recommended)
-./scripts/dev-setup.sh
+# Install Python dependencies
+make install-deps
 
-# Or manual setup
-make dev-start
+# Copy environment configuration (optional)
+cp .env.example .env
+# Edit .env with your Redis configuration
+
+# Test Redis connection
+python main.py test-connection
 ```
 
-This will:
-- Start metrics stack (Redis, Prometheus, Grafana) in Docker
-- Install Python dependencies in virtual environment
-- Configure local environment (.env file)
-- Test the connection
-
-#### **Option 2: Quick Iteration Setup (Daily Development)**
-```bash
-# Start metrics stack only (faster)
-make dev-start-metrics-stack
-
-# Dependencies should already be installed from first-time setup
-# Now run tests repeatedly without restarting stack
-```
-
-### Access Services
+### Access Services (from metrics stack)
 - **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
 - **📈 Prometheus**: http://localhost:9090 - Raw metrics and queries
 - **📡 Redis**: localhost:6379 - Database connection
@@ -93,40 +83,31 @@ make dev-start-metrics-stack
 
 #### **Quick Iteration (Recommended):**
 ```bash
-# Start metrics stack once
-make dev-start-metrics-stack
-
 # Run tests repeatedly (edit code between runs)
-./venv/bin/python main.py run --workload-profile basic_rw --duration 30
-./venv/bin/python main.py run --workload-profile high_throughput --duration 60
-./venv/bin/python main.py run --workload-profile list_operations --duration 45
+python main.py run --workload-profile basic_rw --duration 30
+python main.py run --workload-profile high_throughput --duration 60
+python main.py run --workload-profile list_operations --duration 45
 
 # View real-time metrics in Grafana: http://localhost:3000
 ```
 
 #### **Long-Running Tests (Unlimited Duration):**
 ```bash
-# Start metrics stack once
-make dev-start-metrics-stack
-
 # Run unlimited tests (until Ctrl+C)
-./venv/bin/python main.py run --workload-profile basic_rw
-./venv/bin/python main.py run --workload-profile high_throughput
+python main.py run --workload-profile basic_rw
+python main.py run --workload-profile high_throughput
 
 # Monitor in real-time via Grafana: http://localhost:3000
 # Stop test with Ctrl+C when ready
 ```
 
-#### **Alternative: Predefined Tests:**
+#### **Quick Tests:**
 ```bash
-# 60-second basic test (starts stack if needed)
-make dev-test
+# 60-second basic test
+make test
 
-# View real-time logs
-make dev-logs
-
-# Check service status
-make status
+# Test Redis connection
+make test-connection
 ```
 
 #### **Custom Test Examples:**
@@ -441,48 +422,54 @@ python main.py run \
 - **JSON export** for custom analysis with `--output-file`
 - **Comprehensive logging** with configurable levels
 
+## 📊 Metrics and Observability
+
+This application sends metrics to an external **Redis Metrics Stack** using OpenTelemetry.
+
+### Required Metrics Stack
+
+You need the separate `redis-metrics-stack` repository running:
+
+```bash
+# Clone and start the metrics stack
+git clone <redis-metrics-stack-repo>
+cd redis-metrics-stack
+make start
+```
+
+### Metrics Sent
+
+The application automatically sends these standardized metrics:
+
+- **`redis_operations_total`**: Counter of Redis operations
+- **`redis_operation_duration`**: Histogram of operation latency
+- **`redis_connections_total`**: Counter of connection attempts
+- **`redis_reconnection_duration_ms`**: Histogram of reconnection time
+
+### Configuration
+
+Configure OpenTelemetry endpoint in `.env`:
+
+```bash
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+```
+
 ## ☁️ Production Deployment
 
 **TODO: Complete production deployment documentation**
 
 The application is designed for cloud deployment with:
 
-### **Available Infrastructure:**
-- **✅ GitHub Actions CI/CD** pipeline (`.github/workflows/ci.yml`)
 - **✅ Kubernetes templates** (`k8s/` directory)
-- **✅ Docker images** for all workload types
-- **✅ Helm chart structure** (planned)
-
-### **Deployment Commands (Ready):**
-```bash
-# Build and push images
-make build push
-
-# Deploy to environments
-make deploy-dev    # Development environment
-make deploy-prod   # Production environment
-```
-
-### **Cloud Platforms:**
-- **AWS EKS** - Kubernetes deployment
-- **Google GKE** - Container orchestration
-- **Azure AKS** - Managed Kubernetes
-- **Docker Swarm** - Simple container orchestration
-
-### **Monitoring Stack:**
-- **Prometheus** - Metrics collection
-- **Grafana** - Dashboards and visualization
-- **OpenTelemetry** - Observability framework
+- **✅ Docker image** ready for deployment
+- **✅ OpenTelemetry integration** for observability
 
 **📋 TODO Items:**
 - [ ] Complete Kubernetes manifests
 - [ ] Helm chart implementation
-- [ ] Cloud-specific deployment guides
 - [ ] Production environment configuration
 - [ ] Scaling and resource management
-- [ ] Security and secrets management
-- [ ] Multi-region deployment
-- [ ] Disaster recovery procedures
 
 ## Core Files
 
@@ -491,10 +478,18 @@ make deploy-prod   # Production environment
 - `redis_client.py` - Redis connection management with resilience
 - `workloads.py` - Workload implementations
 - `test_runner.py` - Main test execution engine
-- `metrics.py` - Metrics collection and reporting
+- `metrics.py` - OpenTelemetry metrics collection
 - `logger.py` - Logging configuration
 - `requirements.txt` - Python dependencies
 - `.env.example` - Environment variables template
-- `Makefile` - Development and deployment commands
-- `docker-compose.yml` - Full containerized environment
-- `docker-compose.metrics.yml` - Metrics stack only (for local dev)
+- `Makefile` - Development and build commands
+- `Dockerfile` - Container image definition
+- `setup.sh` - Quick setup script
+
+## Related Projects
+
+- **`redis-metrics-stack`** - Observability infrastructure (separate repository)
+  - OpenTelemetry Collector
+  - Prometheus metrics storage
+  - Grafana dashboards
+  - Redis database for testing
