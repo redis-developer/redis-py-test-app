@@ -24,7 +24,6 @@ Redis Test Apps → OpenTelemetry Collector → Prometheus → Grafana
 | `redis_operations_total` | Counter | `1` | Total number of Redis operations executed | `operation`, `status`, `app_name`, `instance_id`, `version`, `error_type` | Records every Redis command |
 | `redis_operation_duration` | Histogram | `ms` | Duration of Redis operations in milliseconds | `operation`, `status`, `app_name`, `instance_id`, `version` | Buckets: `[0.1, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]` |
 | `redis_connections_total` | Counter | `1` | Total number of Redis connection attempts | `status`, `app_name`, `instance_id`, `version` | Tracks connection success/failure |
-| `redis_active_connections` | Gauge | `1` | Current number of active Redis connections | `app_name`, `instance_id`, `version` | Current state, not cumulative |
 | `redis_reconnection_duration_ms` | Histogram | `ms` | Duration of Redis reconnection attempts | `app_name`, `instance_id`, `version` | Buckets: `[100, 500, 1000, 2000, 5000, 10000, 30000, 60000]` |
 
 ### Label Definitions
@@ -45,45 +44,10 @@ Redis Test Apps → OpenTelemetry Collector → Prometheus → Grafana
 redis_operations_total{operation="SET", status="success", app_name="python-basic-rw", instance_id="abc123", version="1.0.0", error_type="none"} 1500
 redis_operations_total{operation="GET", status="error", app_name="python-basic-rw", instance_id="abc123", version="1.0.0", error_type="timeout"} 5
 
-# Active connections gauge
-redis_active_connections{app_name="python-basic-rw", instance_id="abc123", version="1.0.0"} 5
-
 # Connection attempts counter
 redis_connections_total{status="success", app_name="python-basic-rw", instance_id="abc123", version="1.0.0"} 10
 redis_connections_total{status="error", app_name="python-basic-rw", instance_id="abc123", version="1.0.0"} 2
 ```
-
-## Standard Redis Operations
-
-All applications should support these standard Redis operations for consistent testing:
-
-| Category | Operation | Description | Use Case |
-|----------|-----------|-------------|----------|
-| **Core** | `SET` | Set string value | Basic key-value operations |
-| | `GET` | Get string value | Basic key-value operations |
-| | `DEL` | Delete key | Cleanup and key management |
-| | `INCR` | Increment integer value | Counters and atomic operations |
-| | `PING` | Connection test | Health checks |
-| **Lists** | `LPUSH` | Push to left of list | Queue operations |
-| | `RPUSH` | Push to right of list | Stack operations |
-| | `LPOP` | Pop from left of list | Queue processing |
-| | `RPOP` | Pop from right of list | Stack processing |
-| | `LRANGE` | Get range from list | List inspection |
-| | `LLEN` | Get list length | List size monitoring |
-| **Sets** | `SADD` | Add to set | Unique collections |
-| | `SREM` | Remove from set | Set management |
-| | `SCARD` | Get set cardinality | Set size monitoring |
-| | `SMEMBERS` | Get all set members | Set inspection |
-| **Hashes** | `HSET` | Set hash field | Object storage |
-| | `HGET` | Get hash field | Object field access |
-| | `HDEL` | Delete hash field | Object field management |
-| | `HGETALL` | Get all hash fields | Object inspection |
-| **Sorted Sets** | `ZADD` | Add to sorted set | Ranked collections |
-| | `ZREM` | Remove from sorted set | Ranked management |
-| | `ZCARD` | Get sorted set cardinality | Ranked size monitoring |
-| | `ZRANGE` | Get range from sorted set | Ranked queries |
-| **Pub/Sub** | `PUBLISH` | Publish message | Message broadcasting |
-| | `SUBSCRIBE` | Subscribe to channel | Message consumption |
 
 ## Label Standards
 
@@ -195,20 +159,20 @@ All metric queries should support these filters for consistent dashboard behavio
 
 ## Example Grafana Queries
 
-**Note on Time Ranges**: The `[5m]` in these queries represents a 5-minute time window for rate calculations. This provides:
-- **Smoothed metrics**: Reduces noise from short-term spikes
-- **Stable rates**: More reliable rate calculations over time
-- **Better visualization**: Smoother graphs in Grafana
+**Note on Time Ranges**: The `[10s]` in these queries represents a 10-second time window for rate calculations. This provides:
+- **Near real-time response**: Changes visible within 10 seconds
+- **Good balance**: Responsive enough for monitoring while reducing noise
+- **Fast failure detection**: Quickly shows when Redis goes down
 
-For real-time monitoring, you can use shorter windows like `[30s]` or `[1m]`, but expect more volatile graphs.
+
 
 ### Operations Rate by Status
 ```promql
-# 5-minute rate (recommended for stable visualization)
-sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[5m])) by (operation, status)
+# 10-second rate (recommended for near real-time monitoring)
+sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[10s])) by (operation, status)
 
-# 1-minute rate (more real-time, more volatile)
-sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[1m])) by (operation, status)
+# 5-minute rate (smoother, less responsive)
+sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[5m])) by (operation, status)
 ```
 
 ### Average Latency by Operation
@@ -227,11 +191,6 @@ histogram_quantile(0.95, sum(rate(redis_operation_duration_bucket{app_name=~"$ap
 
 # 1-minute percentile (more real-time)
 histogram_quantile(0.95, sum(rate(redis_operation_duration_bucket{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[1m])) by (operation, le))
-```
-
-### Active Connections by App
-```promql
-redis_active_connections{app_name=~"$app_name", instance_id=~"$instance_id", version=~"$version"}
 ```
 
 ### Connection Success Rate
@@ -410,7 +369,6 @@ spec:
 
 3. **Incorrect Metric Types**
    - Use Counter for cumulative values (operations_total, connections_total)
-   - Use Gauge for current state (active_connections)
    - Use Histogram for distributions (duration metrics)
 
 4. **Performance Issues**
@@ -420,7 +378,7 @@ spec:
 
 ### Validation Checklist
 
-- [ ] All 5 required metrics are implemented
+- [ ] All 4 required metrics are implemented
 - [ ] All required labels are present and correctly formatted
 - [ ] App name follows naming convention
 - [ ] Instance ID is unique per application instance
