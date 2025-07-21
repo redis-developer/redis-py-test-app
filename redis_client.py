@@ -296,7 +296,19 @@ class RedisClientManager:
     # Pub/Sub operations
     def publish(self, channel: str, message: str) -> int:
         """Publish a message to a channel."""
-        return self._execute_with_metrics('PUBLISH', self._client.publish, channel, message)
+        start_time = time.time()
+        try:
+            result = self._client.publish(channel, message)
+            duration = max(0.0, time.time() - start_time)
+            # Record both general operation metrics and pub/sub specific metrics
+            self.metrics.record_operation('PUBLISH', duration, True)
+            self.metrics.record_pubsub_operation(channel, 'PUBLISH', success=True)
+            return result
+        except Exception as e:
+            duration = max(0.0, time.time() - start_time)
+            self.metrics.record_operation('PUBLISH', duration, False, type(e).__name__)
+            self.metrics.record_pubsub_operation(channel, 'PUBLISH', success=False, error_type=type(e).__name__)
+            raise
 
     def pubsub(self):
         """Get a pubsub instance."""

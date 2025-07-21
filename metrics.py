@@ -70,9 +70,12 @@ class MetricsCollector:
         self._reconnection_count = 0
         self._reconnection_duration = 0.0
 
-        # OpenTelemetry setup (single collection method)
+        # Setup metrics collection
         if self.enable_otel:
             self._setup_opentelemetry()
+
+        if self.enable_prometheus:
+            self._setup_prometheus_metrics()
 
     def _setup_opentelemetry(self):
         """Setup OpenTelemetry metrics and tracing."""
@@ -139,7 +142,12 @@ class MetricsCollector:
                 unit="1"
             )
 
-
+            # Pub/Sub specific metrics (unified)
+            self.otel_pubsub_operations_counter = self.meter.create_counter(
+                name="redis_pubsub_operations_total",
+                description="Total number of Redis pub/sub operations (publish and receive)",
+                unit="1"
+            )
 
             # Note: Using manual instrumentation instead of automatic Redis instrumentation
             # to have full control over operation labeling and avoid "BATCH" aggregation
@@ -205,6 +213,22 @@ class MetricsCollector:
             'Average operation latency',
             ['operation'] + base_labels
         )
+
+        # 7. Pub/Sub specific metrics (unified)
+        self.prom_pubsub_operations_total = Counter(
+            'redis_pubsub_operations_total',
+            'Total number of Redis pub/sub operations (publish and receive)',
+            ['channel', 'operation_type', 'subscriber_id', 'status'] + base_labels
+        )
+
+        # Start Prometheus HTTP server
+        try:
+            from prometheus_client import start_http_server
+            start_http_server(self.prometheus_port)
+            self.logger.info(f"Prometheus metrics server started on port {self.prometheus_port}")
+        except Exception as e:
+            self.logger.error(f"Failed to start Prometheus server: {e}")
+            self.enable_prometheus = False
     
 
     
@@ -320,10 +344,40 @@ class MetricsCollector:
             }
             self.prom_active_connections.labels(**labels).set(count)
 
+    def record_pubsub_operation(self, channel: str, operation_type: str, subscriber_id: str = None, success: bool = True, error_type: str = None):
+        """Record metrics for a pub/sub operation (publish or receive)."""
 
+        # Update OpenTelemetry metrics
+        if self.enable_otel and hasattr(self, 'otel_pubsub_operations_counter'):
+            labels = {
+                "app_name": self.app_name,
+                "instance_id": self.instance_id,
+                "version": self.version,
+                "run_id": self.run_id,
+                "channel": channel,
+                "operation_type": operation_type,
+                "subscriber_id": subscriber_id or "",
+                "status": "success" if success else "error"
+            }
+            self.otel_pubsub_operations_counter.add(1, labels)
 
+        # Update Prometheus metrics
+        if self.enable_prometheus and hasattr(self, 'prom_pubsub_operations_total'):
+            base_labels = {
+                'app_name': self.app_name,
+                'service_name': self.service_name,
+                'instance_id': self.instance_id
+            }
 
-    
+            status = "success" if success else "error"
+            self.prom_pubsub_operations_total.labels(
+                channel=channel,
+                operation_type=operation_type,
+                subscriber_id=subscriber_id or "",
+                status=status,
+                **base_labels
+            ).inc()
+
     def get_operation_stats(self, operation: str) -> Dict:
         """Get statistics for a specific operation."""
         with self._lock:

@@ -303,6 +303,9 @@ class PubSubWorkload(BaseWorkload):
         self._pubsub = None
         self._subscriber_thread = None
         self._stop_subscriber = threading.Event()
+        # Generate unique subscriber ID for this workload instance
+        import uuid
+        self._subscriber_id = f"subscriber_{uuid.uuid4().hex[:8]}"
     
     def _start_subscriber(self):
         """Start subscriber in a separate thread."""
@@ -318,15 +321,27 @@ class PubSubWorkload(BaseWorkload):
             while not self._stop_subscriber.is_set():
                 try:
                     # Use get_message with short timeout to be responsive to shutdown
+                    start_time = time.time()
                     message = self._pubsub.get_message(timeout=0.5)
+
                     if message and message['type'] == 'message':
-                        self.logger.debug(f"Received message on {message['channel']}: {message['data']}")
+                        channel_name = message['channel'].decode() if isinstance(message['channel'], bytes) else str(message['channel'])
+
+                        # Record receive metrics using unified pub/sub metric
+                        self.metrics.record_pubsub_operation(channel_name, 'receive', self._subscriber_id, success=True)
+
+                        self.logger.debug(f"Received message on {channel_name}: {message['data']}")
+
                 except (ConnectionError, ValueError) as e:
                     # These are expected during shutdown, break quietly
                     break
                 except Exception as e:
-                    # Other unexpected errors - log only if not shutting down
+                    # Record error metrics if we have channel info
                     if not self._stop_subscriber.is_set():
+                        # Use default channel for error tracking
+                        channels = self.config.get_option("channels", ["test_channel"])
+                        default_channel = channels[0] if channels else "unknown"
+                        self.metrics.record_pubsub_operation(default_channel, 'receive', self._subscriber_id, success=False, error_type=type(e).__name__)
                         self.logger.debug(f"Subscriber error (continuing): {e}")
                     break
 
