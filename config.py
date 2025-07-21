@@ -186,11 +186,9 @@ class RunnerConfig:
     redis: RedisConnectionConfig = field(default_factory=RedisConnectionConfig)
     test: TestConfig = field(default_factory=TestConfig)
 
-    # Logging and metrics (keeping from original implementation)
+    # Logging and metrics
     log_level: str = "INFO"
     log_file: Optional[str] = None
-    metrics_enabled: bool = True
-    metrics_port: int = 8000
     metrics_interval: int = 5
 
     # Output
@@ -198,7 +196,6 @@ class RunnerConfig:
     quiet: bool = False
 
     # OpenTelemetry configuration
-    otel_enabled: bool = True
     otel_endpoint: Optional[str] = None
     otel_service_name: str = "redis-py-test-app"
     otel_service_version: str = "1.0.0"
@@ -343,12 +340,9 @@ def save_config_to_file(config: RunnerConfig, file_path: str):
         },
         'log_level': config.log_level,
         'log_file': config.log_file,
-        'metrics_enabled': config.metrics_enabled,
-        'metrics_port': config.metrics_port,
         'metrics_interval': config.metrics_interval,
         'output_file': config.output_file,
         'quiet': config.quiet,
-        'otel_enabled': config.otel_enabled,
         'otel_endpoint': config.otel_endpoint,
         'otel_service_name': config.otel_service_name,
         'otel_service_version': config.otel_service_version,

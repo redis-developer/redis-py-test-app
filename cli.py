@@ -79,10 +79,9 @@ def cli():
 @click.option('--transaction-size', type=int, default=lambda: get_env_or_default('TEST_TRANSACTION_SIZE', 5, int), help='Number of operations per transaction')
 @click.option('--log-level', default=lambda: get_env_or_default('LOG_LEVEL', 'INFO'), type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']), help='Logging level')
 @click.option('--log-file', default=lambda: get_env_or_default('LOG_FILE', None), help='Log file path')
-@click.option('--metrics-enabled/--no-metrics', default=lambda: get_env_or_default('METRICS_ENABLED', True, bool), help='Enable metrics collection')
-@click.option('--metrics-port', type=int, default=lambda: get_env_or_default('METRICS_PORT', 8000, int), help='Prometheus metrics server port')
+
 @click.option('--metrics-interval', type=int, default=lambda: get_env_or_default('METRICS_INTERVAL', 5, int), help='Metrics reporting interval in seconds')
-@click.option('--otel-enabled', is_flag=True, default=lambda: get_env_or_default('OTEL_ENABLED', True, bool), help='Enable OpenTelemetry')
+
 @click.option('--otel-endpoint', default=lambda: get_env_or_default('OTEL_EXPORTER_OTLP_ENDPOINT', None), help='OpenTelemetry OTLP endpoint')
 @click.option('--otel-service-name', default=lambda: get_env_or_default('OTEL_SERVICE_NAME', 'redis-load-test'), help='OpenTelemetry service name')
 @click.option('--otel-export-interval', type=int, default=lambda: get_env_or_default('OTEL_EXPORT_INTERVAL', 5000, int), help='OpenTelemetry export interval in milliseconds')
@@ -316,12 +315,9 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         test=test_config,
         log_level=kwargs['log_level'],
         log_file=kwargs['log_file'],
-        metrics_enabled=kwargs['metrics_enabled'],
-        metrics_port=kwargs['metrics_port'],
         metrics_interval=kwargs['metrics_interval'],
         output_file=kwargs['output_file'],
         quiet=kwargs['quiet'],
-        otel_enabled=kwargs['otel_enabled'],
         otel_endpoint=kwargs['otel_endpoint'],
         otel_service_name=kwargs['otel_service_name'],
         otel_export_interval_ms=kwargs['otel_export_interval'],
