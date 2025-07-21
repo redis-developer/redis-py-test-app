@@ -5,7 +5,7 @@ import time
 import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Deque
+from typing import Dict, List, Optional, Deque, Any
 import statistics
 import json
 import os
@@ -44,7 +44,7 @@ class MetricsCollector:
                  enable_otel: bool = True, otel_endpoint: str = None,
                  service_name: str = "redis-load-test", service_version: str = "1.0.0",
                  otel_export_interval_ms: int = 5000, app_name: str = "python",
-                 instance_id: str = None, version: str = None):
+                 instance_id: str = None, run_id: str = None, version: str = None):
         self.logger = get_logger()
         self.enable_prometheus = enable_prometheus
         self.prometheus_port = prometheus_port
@@ -55,6 +55,7 @@ class MetricsCollector:
         self.otel_export_interval_ms = otel_export_interval_ms
         self.app_name = app_name
         self.instance_id = instance_id if instance_id and instance_id.strip() else f"{app_name}-{str(uuid.uuid4())[:8]}"
+        self.run_id = run_id if run_id and run_id.strip() else str(uuid.uuid4())
         self.version = version or "unknown"
 
         # Thread-safe metrics storage
@@ -230,6 +231,7 @@ class MetricsCollector:
                 "status": status,
                 "app_name": self.app_name,
                 "instance_id": self.instance_id,
+                "run_id": self.run_id,
                 "version": self.version,
                 "error_type": error_type or "none"
             }
@@ -240,6 +242,7 @@ class MetricsCollector:
                 "status": status,
                 "app_name": self.app_name,
                 "instance_id": self.instance_id,
+                "run_id": self.run_id,
                 "version": self.version
             }
             # Convert duration from seconds to milliseconds
@@ -262,6 +265,7 @@ class MetricsCollector:
                 "status": status,
                 "app_name": self.app_name,
                 "instance_id": self.instance_id,
+                "run_id": self.run_id,
                 "version": self.version
             }
             self.otel_connections_counter.add(1, labels)
@@ -279,6 +283,7 @@ class MetricsCollector:
             labels = {
                 "app_name": self.app_name,
                 "instance_id": self.instance_id,
+                "run_id": self.run_id,
                 "version": self.version
             }
             # Convert duration from seconds to milliseconds
@@ -403,23 +408,79 @@ class MetricsCollector:
         with open(file_path, 'w') as f:
             json.dump(stats, f, indent=2)
     
-    def print_summary(self):
-        """Print a summary of current metrics."""
+    def get_final_test_summary(self) -> Dict[str, Any]:
+        """Get final test summary in standardized format."""
         stats = self.get_overall_stats()
-        
+
+        # Extract workload name from app_name (format: {app-name}-{workload-profile})
+        workload_name = "unknown"
+        if "-" in self.app_name:
+            # Split on last dash to handle app names with dashes
+            parts = self.app_name.rsplit("-", 1)
+            if len(parts) == 2:
+                workload_name = parts[1]
+
+        # Format duration as string with unit
+        duration_seconds = stats['test_duration']
+        if duration_seconds < 60:
+            duration_str = f"{duration_seconds:.1f}s"
+        elif duration_seconds < 3600:
+            duration_str = f"{duration_seconds/60:.1f}m"
+        else:
+            duration_str = f"{duration_seconds/3600:.1f}h"
+
+        # Format success rate as percentage string
+        success_rate = stats['overall_success_rate'] * 100
+
+        # Format connection success rate as percentage string
+        connection_success_rate = stats['connection_success_rate'] * 100
+
+        # Convert reconnection duration to milliseconds
+        avg_reconnection_duration_ms = stats['avg_reconnection_duration'] * 1000
+
+        summary = {
+            "test_duration": duration_str,
+            "workload_name": workload_name,
+            "total_commands_count": stats['total_operations'],
+            "successful_commands_count": stats['successful_operations'],
+            "failed_commands_count": stats['failed_operations'],
+            "success_rate": f"{success_rate:.2f}%",
+            "overall_throughput": round(stats['overall_ops_per_second']),
+            "connection_attempts": stats['connection_attempts'],
+            "connection_failures": stats['connection_failures'],
+            "connection_success_rate": f"{connection_success_rate:.2f}%",
+            "reconnection_count": stats['reconnection_count'],
+            "avg_reconnection_duration_ms": round(avg_reconnection_duration_ms, 1)
+        }
+
+        return summary
+
+    def export_final_summary_to_json(self, file_path: str):
+        """Export final test summary to JSON file."""
+        summary = self.get_final_test_summary()
+        with open(file_path, 'w') as f:
+            json.dump(summary, f, indent=2)
+
+    def print_summary(self):
+        """Print final test summary in standardized format."""
+        summary = self.get_final_test_summary()
+
         print("\n" + "="*60)
-        print("REDIS TEST METRICS SUMMARY")
+        print("FINAL TEST SUMMARY")
         print("="*60)
-        print(f"Test Duration: {stats['test_duration']:.2f}s")
-        print(f"Total Operations: {stats['total_operations']:,}")
-        print(f"Successful Operations: {stats['successful_operations']:,}")
-        print(f"Failed Operations: {stats['failed_operations']:,}")
-        print(f"Success Rate: {stats['overall_success_rate']:.2%}")
-        print(f"Overall Throughput: {stats['overall_ops_per_second']:.2f} ops/sec")
-        print(f"Connection Success Rate: {stats['connection_success_rate']:.2%}")
-        if stats['reconnection_count'] > 0:
-            print(f"Reconnections: {stats['reconnection_count']}")
-            print(f"Avg Reconnection Duration: {stats['avg_reconnection_duration']:.2f}s")
+        print(f"Test Duration: {summary['test_duration']}")
+        print(f"Workload Name: {summary['workload_name']}")
+        print(f"Total Commands: {summary['total_commands_count']:,}")
+        print(f"Successful Commands: {summary['successful_commands_count']:,}")
+        print(f"Failed Commands: {summary['failed_commands_count']:,}")
+        print(f"Success Rate: {summary['success_rate']}")
+        print(f"Overall Throughput: {summary['overall_throughput']:,} ops/sec")
+        print(f"Connection Attempts: {summary['connection_attempts']}")
+        print(f"Connection Failures: {summary['connection_failures']}")
+        print(f"Connection Success Rate: {summary['connection_success_rate']}")
+        print(f"Reconnection Count: {summary['reconnection_count']}")
+        if summary['reconnection_count'] > 0:
+            print(f"Avg Reconnection Duration: {summary['avg_reconnection_duration_ms']:.1f}ms")
         print("="*60)
 
 
@@ -439,7 +500,7 @@ def setup_metrics(enable_prometheus: bool = True, prometheus_port: int = 8000,
                  enable_otel: bool = True, otel_endpoint: str = None,
                  service_name: str = "redis-load-test", service_version: str = "1.0.0",
                  otel_export_interval_ms: int = 5000, app_name: str = "python",
-                 instance_id: str = None, version: str = None) -> MetricsCollector:
+                 instance_id: str = None, run_id: str = None, version: str = None) -> MetricsCollector:
     """Setup global metrics collector with multi-app support."""
     global _metrics_collector
     _metrics_collector = MetricsCollector(
@@ -452,6 +513,7 @@ def setup_metrics(enable_prometheus: bool = True, prometheus_port: int = 8000,
         otel_export_interval_ms=otel_export_interval_ms,
         app_name=app_name,
         instance_id=instance_id,
+        run_id=run_id,
         version=version
     )
     return _metrics_collector

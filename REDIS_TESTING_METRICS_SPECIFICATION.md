@@ -21,10 +21,10 @@ Redis Test Apps → OpenTelemetry Collector → Prometheus → Grafana
 
 | Metric Name | Type | Unit | Description | Labels | Buckets/Notes |
 |-------------|------|------|-------------|--------|---------------|
-| `redis_operations_total` | Counter | `1` | Total number of Redis operations executed | `operation`, `status`, `app_name`, `instance_id`, `version`, `error_type` | Records every Redis command |
-| `redis_operation_duration` | Histogram | `ms` | Duration of Redis operations in milliseconds | `operation`, `status`, `app_name`, `instance_id`, `version` | Buckets: `[0.1, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]` |
-| `redis_connections_total` | Counter | `1` | Total number of Redis connection attempts | `status`, `app_name`, `instance_id`, `version` | Tracks connection success/failure |
-| `redis_reconnection_duration_ms` | Histogram | `ms` | Duration of Redis reconnection attempts | `app_name`, `instance_id`, `version` | Buckets: `[100, 500, 1000, 2000, 5000, 10000, 30000, 60000]` |
+| `redis_operations_total` | Counter | `1` | Total number of Redis operations executed | `operation`, `status`, `app_name`, `instance_id`, `run_id`, `version`, `error_type` | Records every Redis command |
+| `redis_operation_duration` | Histogram | `ms` | Duration of Redis operations in milliseconds | `operation`, `status`, `app_name`, `instance_id`, `run_id`, `version` | Buckets: `[0.1, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]` |
+| `redis_connections_total` | Counter | `1` | Total number of Redis connection attempts | `status`, `app_name`, `instance_id`, `run_id`, `version` | Tracks connection success/failure |
+| `redis_reconnection_duration_ms` | Histogram | `ms` | Duration of Redis reconnection attempts | `app_name`, `instance_id`, `run_id`, `version` | Buckets: `[100, 500, 1000, 2000, 5000, 10000, 30000, 60000]` |
 
 ### Label Definitions
 
@@ -34,6 +34,7 @@ Redis Test Apps → OpenTelemetry Collector → Prometheus → Grafana
 | `status` | string | Operation/connection result | `success`, `error` |
 | `app_name` | string | Application identifier | `python-basic-rw`, `go-high-throughput`, `java-pipeline` |
 | `instance_id` | string | Unique instance identifier | `550e8400-e29b-41d4-a716-446655440000` (UUID) |
+| `run_id` | string | Unique run identifier | `550e8400-e29b-41d4-a716-446655440000` (UUID) |
 | `version` | string | Application/SDK version | `redis-py-5.0.1`, `1.0.0`, `dev` |
 | `error_type` | string | Error classification | `none`, `timeout`, `connection_error`, `command_error`, `auth_error` |
 
@@ -41,12 +42,12 @@ Redis Test Apps → OpenTelemetry Collector → Prometheus → Grafana
 
 ```promql
 # Operations counter
-redis_operations_total{operation="SET", status="success", app_name="python-basic-rw", instance_id="abc123", version="1.0.0", error_type="none"} 1500
-redis_operations_total{operation="GET", status="error", app_name="python-basic-rw", instance_id="abc123", version="1.0.0", error_type="timeout"} 5
+redis_operations_total{operation="SET", status="success", app_name="python-basic-rw", instance_id="abc123", run_id="def456", version="1.0.0", error_type="none"} 1500
+redis_operations_total{operation="GET", status="error", app_name="python-basic-rw", instance_id="abc123", run_id="def456", version="1.0.0", error_type="timeout"} 5
 
 # Connection attempts counter
-redis_connections_total{status="success", app_name="python-basic-rw", instance_id="abc123", version="1.0.0"} 10
-redis_connections_total{status="error", app_name="python-basic-rw", instance_id="abc123", version="1.0.0"} 2
+redis_connections_total{status="success", app_name="python-basic-rw", instance_id="abc123", run_id="def456", version="1.0.0"} 10
+redis_connections_total{status="error", app_name="python-basic-rw", instance_id="abc123", run_id="def456", version="1.0.0"} 2
 ```
 
 ## Label Standards
@@ -65,6 +66,12 @@ Examples:
 - **Format**: Random UUID (e.g., `550e8400-e29b-41d4-a716-446655440000`)
 - **Generation**: Generate new UUID on each application start
 - **CLI Override**: Allow override via `--instance-id` parameter
+
+### Run ID
+- **Format**: Random UUID (e.g., `550e8400-e29b-41d4-a716-446655440000`)
+- **Generation**: Generate new UUID on each test run
+- **CLI Override**: Allow override via `--run-id` parameter
+- **Purpose**: Track individual test runs for analysis and debugging
 
 ### Version
 - **SDK Version**: Use Redis client library version (e.g., `redis-py-5.0.1`)
@@ -151,7 +158,8 @@ Examples:
 The shared Grafana dashboard uses these template variables:
 
 - `$app_name` - Filter by application name (multi-select)
-- `$instance_id` - Filter by instance ID (multi-select)  
+- `$instance_id` - Filter by instance ID (multi-select)
+- `$run_id` - Filter by run ID (multi-select)
 - `$version` - Filter by version (multi-select)
 - `$operation` - Filter by Redis operation (multi-select)
 
@@ -169,46 +177,46 @@ All metric queries should support these filters for consistent dashboard behavio
 ### Operations Rate by Status
 ```promql
 # 10-second rate (recommended for near real-time monitoring)
-sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[10s])) by (operation, status)
+sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[10s])) by (operation, status)
 
 # 5-minute rate (smoother, less responsive)
-sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[5m])) by (operation, status)
+sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[5m])) by (operation, status)
 ```
 
 ### Average Latency by Operation
 ```promql
 # 5-minute average (recommended)
-avg(rate(redis_operation_duration_sum{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[5m]) / rate(redis_operation_duration_count{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[5m])) by (operation)
+avg(rate(redis_operation_duration_sum{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[5m]) / rate(redis_operation_duration_count{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[5m])) by (operation)
 
 # 1-minute average (more real-time)
-avg(rate(redis_operation_duration_sum{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[1m]) / rate(redis_operation_duration_count{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[1m])) by (operation)
+avg(rate(redis_operation_duration_sum{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[1m]) / rate(redis_operation_duration_count{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[1m])) by (operation)
 ```
 
 ### 95th Percentile Latency
 ```promql
 # 5-minute percentile (recommended)
-histogram_quantile(0.95, sum(rate(redis_operation_duration_bucket{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[5m])) by (operation, le))
+histogram_quantile(0.95, sum(rate(redis_operation_duration_bucket{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[5m])) by (operation, le))
 
 # 1-minute percentile (more real-time)
-histogram_quantile(0.95, sum(rate(redis_operation_duration_bucket{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version"}[1m])) by (operation, le))
+histogram_quantile(0.95, sum(rate(redis_operation_duration_bucket{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version"}[1m])) by (operation, le))
 ```
 
 ### Connection Success Rate
 ```promql
 # 5-minute success rate (recommended)
-sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", version=~"$version", status="success"}[5m])) / sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", version=~"$version"}[5m])) * 100
+sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", version=~"$version", status="success"}[5m])) / sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", version=~"$version"}[5m])) * 100
 
 # 1-minute success rate (more real-time)
-sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", version=~"$version", status="success"}[1m])) / sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", version=~"$version"}[1m])) * 100
+sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", version=~"$version", status="success"}[1m])) / sum(rate(redis_connections_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", version=~"$version"}[1m])) * 100
 ```
 
 ### Error Rate by Operation
 ```promql
 # 5-minute error rate (recommended)
-sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version", status="error"}[5m])) by (operation, error_type)
+sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version", status="error"}[5m])) by (operation, error_type)
 
 # 1-minute error rate (more real-time)
-sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", operation=~"$operation", version=~"$version", status="error"}[1m])) by (operation, error_type)
+sum(rate(redis_operations_total{app_name=~"$app_name", instance_id=~"$instance_id", run_id=~"$run_id", operation=~"$operation", version=~"$version", status="error"}[1m])) by (operation, error_type)
 ```
 
 ## Language-Specific Implementation Notes
@@ -234,6 +242,7 @@ operations_counter.add(1, {
     "status": "success",
     "app_name": "python-basic-rw",
     "instance_id": instance_id,
+    "run_id": run_id,
     "version": "1.0.0",
     "error_type": "none"
 })
@@ -258,6 +267,7 @@ operationsCounter.Add(ctx, 1, metric.WithAttributes(
     attribute.String("status", "success"),
     attribute.String("app_name", "go-basic-rw"),
     attribute.String("instance_id", instanceID),
+    attribute.String("run_id", runID),
     attribute.String("version", "1.0.0"),
     attribute.String("error_type", "none"),
 ))
@@ -283,6 +293,7 @@ operationsCounter.add(1, Attributes.of(
     AttributeKey.stringKey("status"), "success",
     AttributeKey.stringKey("app_name"), "java-basic-rw",
     AttributeKey.stringKey("instance_id"), instanceId,
+    AttributeKey.stringKey("run_id"), runId,
     AttributeKey.stringKey("version"), "1.0.0",
     AttributeKey.stringKey("error_type"), "none"
 ));
@@ -303,6 +314,7 @@ operationsCounter.add(1, {
   status: 'success',
   app_name: 'nodejs-basic-rw',
   instance_id: instanceId,
+  run_id: runId,
   version: '1.0.0',
   error_type: 'none'
 });

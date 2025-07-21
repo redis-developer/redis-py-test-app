@@ -208,6 +208,7 @@ class RunnerConfig:
     # Multi-app identification
     app_name: str = "python"
     instance_id: Optional[str] = None
+    run_id: Optional[str] = None
     version: Optional[str] = None  # Redis client version or custom version
 
 

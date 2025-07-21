@@ -16,30 +16,40 @@ A high-performance Redis load testing application built with Python and redis-py
 
 ### Prerequisites
 
-You'll need the **Redis Metrics Stack** running to collect and visualize metrics:
+- **Python 3.8+** with pip
+- **Redis server** running (localhost:6379 by default)
+- **Redis Metrics Stack** (optional, for observability - separate repository)
+
+For metrics collection and visualization, you'll need the separate metrics stack:
 
 ```bash
-# Clone and start the metrics stack (separate repository)
-git clone <redis-metrics-stack-repo>
+# Clone and start the metrics stack (optional - separate repository)
+git clone <redis-metrics-stack-repo-url>
 cd redis-metrics-stack
 make start
 ```
 
 ### 🛠️ Local Development (Recommended)
 
-**Fast iteration with external metrics stack:**
+**Quick setup and testing:**
 
 ```bash
 # Install dependencies
 make install-deps
 
-# Run tests repeatedly (fast iteration)
+# Test Redis connection
+make test-connection
+
+# Run basic test (60 seconds)
+make test
+
+# Run custom tests
 python main.py run --workload-profile basic_rw --duration 30
 python main.py run --workload-profile high_throughput --duration 60
 python main.py run --workload-profile basic_rw # unlimited test run
 ```
 
-**Access your dashboards (from metrics stack):**
+**With metrics stack (optional):**
 - **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
 - **📈 Prometheus**: http://localhost:9090 - Raw metrics
 
@@ -51,10 +61,14 @@ python main.py run --workload-profile basic_rw # unlimited test run
 # Build the application
 make build
 
-# Run with Docker (requires external metrics stack)
+# Run with Docker (standalone)
+docker run redis-py-test-app:latest \
+  python main.py run --workload-profile basic_rw --duration 60
+
+# Run with Docker (with metrics stack)
 docker run --network redis-test-network \
   -e OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 \
-  redis-py-test-app \
+  redis-py-test-app:latest \
   python main.py run --workload-profile basic_rw --duration 60
 ```
 
@@ -71,10 +85,21 @@ cp .env.example .env
 # Edit .env with your Redis configuration
 
 # Test Redis connection
-python main.py test-connection
+make test-connection
 ```
 
-### Access Services (from metrics stack)
+### Available Make Commands
+
+```bash
+make help              # Show all available commands
+make install-deps      # Install Python dependencies
+make test-connection   # Test Redis connection
+make test              # Run basic test (60 seconds)
+make build             # Build Docker image
+make clean             # Clean up Python cache and virtual environment
+```
+
+### Access Services (with metrics stack)
 - **📊 Grafana**: http://localhost:3000 (admin/admin) - **Redis Test Dashboard**
 - **📈 Prometheus**: http://localhost:9090 - Raw metrics and queries
 - **📡 Redis**: localhost:6379 - Database connection
@@ -103,11 +128,14 @@ python main.py run --workload-profile high_throughput
 
 #### **Quick Tests:**
 ```bash
+# Test Redis connection
+make test-connection
+
 # 60-second basic test
 make test
 
-# Test Redis connection
-make test-connection
+# Build Docker image
+make build
 ```
 
 #### **Custom Test Examples:**
@@ -115,44 +143,44 @@ make test-connection
 **Basic Read/Write Operations:**
 ```bash
 # 30-second test
-./venv/bin/python main.py run --workload-profile basic_rw --duration 30
+python main.py run --workload-profile basic_rw --duration 30
 
 # Unlimited duration (until Ctrl+C)
-./venv/bin/python main.py run --workload-profile basic_rw
+python main.py run --workload-profile basic_rw
 ```
 
 **High Throughput Testing:**
 ```bash
 # 60-second high-load test
-./venv/bin/python main.py run --workload-profile high_throughput --duration 60 --threads-per-client 4
+python main.py run --workload-profile high_throughput --duration 60 --threads-per-client 4
 
 # Unlimited high-load test (for sustained performance monitoring)
-./venv/bin/python main.py run --workload-profile high_throughput --threads-per-client 4
+python main.py run --workload-profile high_throughput --threads-per-client 4
 ```
 
 **List Operations:**
 ```bash
 # 45-second list operations test
-./venv/bin/python main.py run --workload-profile list_operations --duration 45
+python main.py run --workload-profile list_operations --duration 45
 
 # Unlimited list operations (for memory usage monitoring)
-./venv/bin/python main.py run --workload-profile list_operations
+python main.py run --workload-profile list_operations
 ```
 
 **Async Mixed Workload:**
 ```bash
 # 2-minute mixed workload test
-./venv/bin/python main.py run --workload-profile async_mixed --duration 120
+python main.py run --workload-profile async_mixed --duration 120
 
 # Unlimited mixed workload (for long-term stability testing)
-./venv/bin/python main.py run --workload-profile async_mixed
+python main.py run --workload-profile async_mixed
 ```
 
 **Custom Configuration:**
 ```bash
 # Multiple clients with custom threading
 # Note: app-name will be concatenated with workload profile (python-dev-basic_rw)
-./venv/bin/python main.py run \
+python main.py run \
   --workload-profile basic_rw \
   --duration 300 \
   --client-instances 2 \
@@ -168,7 +196,7 @@ make test-connection
 export TEST_DURATION=180
 export TEST_CLIENT_INSTANCES=3
 export APP_NAME=python-custom
-./venv/bin/python main.py run --workload-profile high_throughput
+python main.py run --workload-profile high_throughput
 ```
 
 ### Available Make Commands
@@ -197,14 +225,14 @@ make clean                   # Clean up everything
 **Unlimited Test Monitoring:**
 ```bash
 # Start long-running test in background
-./venv/bin/python main.py run --workload-profile high_throughput &
+python main.py run --workload-profile high_throughput &
 
 # Monitor in real-time
 echo "Monitor at: http://localhost:3000"
 echo "Stop test with: kill %1"
 
 # Or run in foreground and stop with Ctrl+C
-./venv/bin/python main.py run --workload-profile basic_rw
+python main.py run --workload-profile basic_rw
 # Press Ctrl+C when ready to stop
 ```
 
@@ -272,13 +300,16 @@ VERSION=v1.0.0
 # OpenTelemetry
 OTEL_ENABLED=true
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# Output
+OUTPUT_FILE=test_results.json  # If specified, final summary goes to file; otherwise stdout
 ```
 
 ### Performance Tuning Examples
 
 **Low Resource Testing:**
 ```bash
-./venv/bin/python main.py run \
+python main.py run \
   --workload-profile basic_rw \
   --duration 60 \
   --client-instances 1 \
@@ -288,7 +319,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 **High Load Testing:**
 ```bash
-./venv/bin/python main.py run \
+python main.py run \
   --workload-profile high_throughput \
   --duration 300 \
   --client-instances 3 \
@@ -298,12 +329,49 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 **Memory Usage Testing:**
 ```bash
-./venv/bin/python main.py run \
+python main.py run \
   --workload-profile list_operations \
   --duration 600 \
   --client-instances 2 \
   --connections-per-client 8 \
   --threads-per-client 3
+```
+
+### Final Test Summary Output
+
+The application outputs a standardized final test summary at the end of each test run. This summary includes key metrics and connection statistics.
+
+**Output to stdout (default):**
+```bash
+python main.py run \
+  --workload-profile basic_rw \
+  --duration 60
+```
+
+**Output to file:**
+```bash
+python main.py run \
+  --workload-profile high_throughput \
+  --duration 300 \
+  --output-file results.json
+```
+
+**Example Final Summary Output:**
+```json
+{
+  "test_duration": "60.0s",
+  "workload_name": "basic_rw",
+  "total_commands_count": 1234567,
+  "successful_commands_count": 1234565,
+  "failed_commands_count": 2,
+  "success_rate": "99.84%",
+  "overall_throughput": 20576,
+  "connection_attempts": 5,
+  "connection_failures": 0,
+  "connection_success_rate": "100.00%",
+  "reconnection_count": 0,
+  "avg_reconnection_duration_ms": 0
+}
 ```
 
 ## Manual Installation
@@ -312,7 +380,9 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 1. Install dependencies:
 ```bash
-pip install -r requirements.txt
+make install-deps
+# OR manually:
+# pip install -r requirements.txt
 ```
 
 2. Copy environment configuration (optional):
@@ -325,7 +395,9 @@ cp .env.example .env
 
 Test Redis connection:
 ```bash
-python main.py test-connection
+make test-connection
+# OR manually:
+# python main.py test-connection
 ```
 
 Run a basic load test:
@@ -417,10 +489,40 @@ python main.py run \
 
 ## Metrics & Monitoring
 
-- **Prometheus metrics** available at `http://localhost:8000/metrics`
+The application provides comprehensive metrics and monitoring capabilities:
+
+- **Final test summary** output to stdout or JSON file with `--output-file`
 - **Real-time statistics** during test execution
-- **JSON export** for custom analysis with `--output-file`
+- **OpenTelemetry metrics** sent to external metrics stack (optional)
 - **Comprehensive logging** with configurable levels
+
+### Final Test Summary
+
+```bash
+# Print summary to stdout (default)
+python main.py run --workload-profile basic_rw --duration 60
+
+# Save summary to JSON file
+python main.py run --workload-profile basic_rw --duration 60 --output-file results.json
+```
+
+Example output:
+```json
+{
+  "test_duration": "60.0s",
+  "workload_name": "basic_rw",
+  "total_commands_count": 1234567,
+  "successful_commands_count": 1234565,
+  "failed_commands_count": 2,
+  "success_rate": "99.84%",
+  "overall_throughput": 20576,
+  "connection_attempts": 5,
+  "connection_failures": 0,
+  "connection_success_rate": "100.00%",
+  "reconnection_count": 0,
+  "avg_reconnection_duration_ms": 0
+}
+```
 
 ## 📊 Metrics and Observability
 
@@ -478,18 +580,20 @@ The application is designed for cloud deployment with:
 - `redis_client.py` - Redis connection management with resilience
 - `workloads.py` - Workload implementations
 - `test_runner.py` - Main test execution engine
-- `metrics.py` - OpenTelemetry metrics collection
+- `metrics.py` - Metrics collection and final test summaries
 - `logger.py` - Logging configuration
 - `requirements.txt` - Python dependencies
 - `.env.example` - Environment variables template
 - `Makefile` - Development and build commands
 - `Dockerfile` - Container image definition
-- `setup.sh` - Quick setup script
 
 ## Related Projects
 
 - **`redis-metrics-stack`** - Observability infrastructure (separate repository)
-  - OpenTelemetry Collector
-  - Prometheus metrics storage
-  - Grafana dashboards
+  - OpenTelemetry Collector for metrics collection
+  - Prometheus for metrics storage
+  - Grafana dashboards for visualization
   - Redis database for testing
+  - Complete monitoring stack for Redis applications
+
+**Note**: This Redis test application is standalone and doesn't require the metrics stack to function. The metrics stack provides additional observability features for advanced monitoring and visualization.

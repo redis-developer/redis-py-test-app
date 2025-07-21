@@ -88,9 +88,10 @@ def cli():
 @click.option('--otel-export-interval', type=int, default=lambda: get_env_or_default('OTEL_EXPORT_INTERVAL', 5000, int), help='OpenTelemetry export interval in milliseconds')
 @click.option('--app-name', default=lambda: get_env_or_default('APP_NAME', 'python'), help='Application name for multi-app filtering (python, go, java, etc.)')
 @click.option('--instance-id', default=lambda: get_env_or_default('INSTANCE_ID', None), help='Unique instance identifier (auto-generated if not provided)')
+@click.option('--run-id', default=lambda: get_env_or_default('RUN_ID', None), help='Unique run identifier (auto-generated if not provided)')
 @click.option('--version', default=lambda: get_env_or_default('VERSION', None), help='Version identifier (defaults to redis-py package version)')
-@click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for metrics export (JSON)')
-@click.option('--quiet', is_flag=True, default=lambda: get_env_or_default('QUIET', False, bool), help='Suppress periodic stats output')
+@click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for final test summary (JSON). If not provided, prints to stdout.')
+@click.option('--quiet', is_flag=True, default=False, help='Suppress periodic stats output')
 @click.option('--config-file', default=lambda: get_env_or_default('CONFIG_FILE', None), help='Load configuration from YAML/JSON file')
 @click.option('--save-config', help='Save current configuration to file')
 def run(**kwargs):
@@ -321,6 +322,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         otel_export_interval_ms=kwargs['otel_export_interval'],
         app_name=concatenated_app_name,
         instance_id=kwargs['instance_id'],
+        run_id=kwargs['run_id'],
         version=kwargs['version'] or get_redis_version()
     )
 

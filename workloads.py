@@ -308,22 +308,39 @@ class PubSubWorkload(BaseWorkload):
         """Start subscriber in a separate thread."""
         try:
             self._pubsub = self.client.pubsub()
-            
+
             # Subscribe to configured channels
             channels = self.config.get_option("channels", ["test_channel"])
             for channel in channels:
                 self._pubsub.subscribe(channel)
-            
-            # Listen for messages
-            for message in self._pubsub.listen():
-                if self._stop_subscriber.is_set():
+
+            # Listen for messages with timeout to allow graceful shutdown
+            while not self._stop_subscriber.is_set():
+                try:
+                    # Use get_message with short timeout to be responsive to shutdown
+                    message = self._pubsub.get_message(timeout=0.5)
+                    if message and message['type'] == 'message':
+                        self.logger.debug(f"Received message on {message['channel']}: {message['data']}")
+                except (ConnectionError, ValueError) as e:
+                    # These are expected during shutdown, break quietly
                     break
-                
-                if message['type'] == 'message':
-                    self.logger.debug(f"Received message on {message['channel']}: {message['data']}")
-                    
+                except Exception as e:
+                    # Other unexpected errors - log only if not shutting down
+                    if not self._stop_subscriber.is_set():
+                        self.logger.debug(f"Subscriber error (continuing): {e}")
+                    break
+
         except Exception as e:
-            log_error_with_traceback("Error in subscriber", e)
+            # Only log error if we're not shutting down
+            if not self._stop_subscriber.is_set():
+                self.logger.error(f"Error in subscriber: {e}")
+        finally:
+            # Ensure pubsub is closed
+            if self._pubsub:
+                try:
+                    self._pubsub.close()
+                except:
+                    pass  # Ignore errors during cleanup
     
     def execute_operation(self) -> int:
         """Execute pub/sub operation."""
@@ -355,9 +372,22 @@ class PubSubWorkload(BaseWorkload):
     
     def cleanup(self):
         """Cleanup pub/sub resources."""
+        # Signal subscriber thread to stop
         self._stop_subscriber.set()
+
+        # Wait for subscriber thread to finish
+        if self._subscriber_thread and self._subscriber_thread.is_alive():
+            try:
+                self._subscriber_thread.join(timeout=2.0)  # Wait up to 2 seconds
+            except Exception:
+                pass  # Ignore join errors
+
+        # Close pubsub connection
         if self._pubsub:
-            self._pubsub.close()
+            try:
+                self._pubsub.close()
+            except Exception:
+                pass  # Ignore close errors during cleanup
 
 
 class WorkloadFactory:

@@ -32,6 +32,7 @@ class TestRunner:
             otel_export_interval_ms=config.otel_export_interval_ms,
             app_name=config.app_name,
             instance_id=config.instance_id,
+            run_id=config.run_id,
             version=config.version
         )
         
@@ -280,20 +281,25 @@ class TestRunner:
             except Exception as e:
                 self.logger.warning(f"Error closing client pool: {e}")
         
-        # Print final statistics
-        if not self.config.quiet:
-            self.metrics.print_summary()
-        
-        # Export metrics if requested
-        if self.config.output_file:
-            try:
-                self.metrics.export_to_json(self.config.output_file)
-                self.logger.info(f"Metrics exported to {self.config.output_file}")
-            except Exception as e:
-                self.logger.error(f"Failed to export metrics: {e}")
+        # Output final test summary
+        self._output_final_summary()
         
         self.logger.info("Load test stopped")
     
+    def _output_final_summary(self):
+        """Output final test summary - to file if --output-file specified, otherwise to stdout."""
+        try:
+            if self.config.output_file:
+                # Write final summary to file
+                self.metrics.export_final_summary_to_json(self.config.output_file)
+                self.logger.info(f"Final test summary exported to {self.config.output_file}")
+            elif not self.config.quiet:
+                # Print final summary to stdout (unless quiet mode)
+                self.metrics.print_summary()
+
+        except Exception as e:
+            self.logger.error(f"Failed to output final summary: {e}")
+
     def get_current_stats(self) -> Dict[str, Any]:
         """Get current test statistics."""
         return self.metrics.get_detailed_stats()
