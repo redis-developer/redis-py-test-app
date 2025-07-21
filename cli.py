@@ -305,6 +305,11 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
     workload_profile_name = kwargs.get('workload_profile', 'custom')
     concatenated_app_name = f"{base_app_name}-{workload_profile_name}"
 
+    # Auto-generate instance_id and run_id if not provided
+    import uuid
+    instance_id = kwargs['instance_id'] or str(uuid.uuid4())
+    run_id = kwargs['run_id'] or str(uuid.uuid4())
+
     # Build main runner config
     config = RunnerConfig(
         redis=redis_config,
@@ -321,8 +326,8 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         otel_service_name=kwargs['otel_service_name'],
         otel_export_interval_ms=kwargs['otel_export_interval'],
         app_name=concatenated_app_name,
-        instance_id=kwargs['instance_id'],
-        run_id=kwargs['run_id'],
+        instance_id=instance_id,
+        run_id=run_id,
         version=kwargs['version'] or get_redis_version()
     )
 

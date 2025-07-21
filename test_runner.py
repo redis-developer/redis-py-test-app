@@ -23,9 +23,6 @@ class TestRunner:
         self.config = config
         self.logger = setup_logging(config.log_level, config.log_file).get_logger()
         self.metrics = setup_metrics(
-            enable_prometheus=config.metrics_enabled,
-            prometheus_port=config.metrics_port,
-            enable_otel=config.otel_enabled,
             otel_endpoint=config.otel_endpoint,
             service_name=config.otel_service_name,
             service_version=config.otel_service_version,
@@ -189,6 +186,7 @@ class TestRunner:
     def start(self):
         """Start the load test."""
         self.logger.info("Starting Redis load test...")
+        self.logger.info(f"Run ID: {self.config.run_id}")
         self.logger.info(f"Configuration: {self.config.test.client_instances} clients, "
                         f"{self.config.test.connections_per_client} connections/client, "
                         f"{self.config.test.threads_per_client} threads/client")
