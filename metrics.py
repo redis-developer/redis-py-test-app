@@ -390,6 +390,26 @@ class MetricsCollector:
         # Convert reconnection duration to milliseconds
         avg_reconnection_duration_ms = stats['avg_reconnection_duration'] * 1000
 
+        # Calculate overall latency percentiles across all operations
+        all_latencies = []
+        with self._lock:
+            for metrics in self._metrics.values():
+                all_latencies.extend(list(metrics.latencies))
+
+        # Calculate latency percentiles in milliseconds (convert from seconds)
+        latency_stats = {}
+        if all_latencies:
+            # Convert to milliseconds for consistency with other duration metrics
+            latencies_ms = [lat * 1000 for lat in all_latencies]
+            latency_stats = {
+                "min_latency_ms": round(min(latencies_ms), 2),
+                "max_latency_ms": round(max(latencies_ms), 2),
+                "median_latency_ms": round(statistics.median(latencies_ms), 2),
+                "p95_latency_ms": round(statistics.quantiles(latencies_ms, n=20)[18] if len(latencies_ms) >= 20 else max(latencies_ms), 2),
+                "p99_latency_ms": round(statistics.quantiles(latencies_ms, n=100)[98] if len(latencies_ms) >= 100 else max(latencies_ms), 2),
+                "avg_latency_ms": round(sum(latencies_ms) / len(latencies_ms), 2)
+            }
+
         # Calculate timestamps
         current_time = time.time()
         start_time = current_time - duration_seconds
@@ -415,6 +435,9 @@ class MetricsCollector:
             "run_start": start_time,
             "run_end": current_time
         }
+
+        # Add latency percentiles if available
+        summary.update(latency_stats)
 
         return summary
 
