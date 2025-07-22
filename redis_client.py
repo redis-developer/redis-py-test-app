@@ -148,11 +148,13 @@ class RedisClientManager:
             # Quick health check
             self._client.ping()
             return True
-        except (ConnectionError, TimeoutError, ClusterDownError):
-            self.logger.warning("Connection lost, attempting to reconnect...")
+        except (ConnectionError, TimeoutError, ClusterDownError) as e:
+            self.logger.warning(f"Connection lost ({type(e).__name__}), attempting to reconnect...")
+            self.metrics.record_connection_drop(type(e).__name__.lower())
             return self._reconnect()
         except Exception as e:
             self.logger.error(f"Unexpected error during connection check: {e}")
+            self.metrics.record_connection_drop("unexpected_error")
             return self._reconnect()
     
     def _reconnect(self) -> bool:

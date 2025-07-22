@@ -62,6 +62,7 @@ class MetricsCollector:
         # Connection metrics
         self._connection_attempts = 0
         self._connection_failures = 0
+        self._connection_drops = 0
         self._reconnection_count = 0
         self._reconnection_duration = 0.0
 
@@ -113,6 +114,12 @@ class MetricsCollector:
             self.otel_connections_counter = self.meter.create_counter(
                 name="redis_connections_total",
                 description="Total number of Redis connection attempts",
+                unit="1"
+            )
+
+            self.otel_connection_drops_counter = self.meter.create_counter(
+                name="redis_connection_drops_total",
+                description="Total number of Redis connection drops",
                 unit="1"
             )
 
@@ -209,6 +216,21 @@ class MetricsCollector:
 
         # Connection metrics collected via OpenTelemetry only
 
+    def record_connection_drop(self, error_type: str = "connection_lost"):
+        """Record connection drop event."""
+        with self._lock:
+            self._connection_drops += 1
+
+        # Update OpenTelemetry metrics
+        labels = {
+            "error_type": error_type,
+            "app_name": self.app_name,
+            "instance_id": self.instance_id,
+            "run_id": self.run_id,
+            "version": self.version
+        }
+        self.otel_connection_drops_counter.add(1, labels)
+
     def record_reconnection(self, duration: float):
         """Record reconnection event."""
         with self._lock:
@@ -304,6 +326,7 @@ class MetricsCollector:
                 'interval_ops_per_second': total_ops / interval_duration if interval_duration > 0 else 0,
                 'connection_attempts': self._connection_attempts,
                 'connection_failures': self._connection_failures,
+                'connection_drops': self._connection_drops,
                 'connection_success_rate': (self._connection_attempts - self._connection_failures) / self._connection_attempts if self._connection_attempts > 0 else 0,
                 'reconnection_count': self._reconnection_count,
                 'avg_reconnection_duration': self._reconnection_duration / self._reconnection_count if self._reconnection_count > 0 else 0
@@ -367,7 +390,15 @@ class MetricsCollector:
         # Convert reconnection duration to milliseconds
         avg_reconnection_duration_ms = stats['avg_reconnection_duration'] * 1000
 
+        # Calculate timestamps
+        current_time = time.time()
+        start_time = current_time - duration_seconds
+
         summary = {
+            "app_name": self.app_name,
+            "instance_id": self.instance_id,
+            "run_id": self.run_id,
+            "version": self.version,
             "test_duration": duration_str,
             "workload_name": workload_name,
             "total_commands_count": stats['total_operations'],
@@ -377,9 +408,12 @@ class MetricsCollector:
             "overall_throughput": round(stats['overall_ops_per_second']),
             "connection_attempts": stats['connection_attempts'],
             "connection_failures": stats['connection_failures'],
+            "connection_drops": stats['connection_drops'],
             "connection_success_rate": f"{connection_success_rate:.2f}%",
             "reconnection_count": stats['reconnection_count'],
-            "avg_reconnection_duration_ms": round(avg_reconnection_duration_ms, 1)
+            "avg_reconnection_duration_ms": round(avg_reconnection_duration_ms, 1),
+            "run_start": start_time,
+            "run_end": current_time
         }
 
         return summary
@@ -406,6 +440,7 @@ class MetricsCollector:
         print(f"Overall Throughput: {summary['overall_throughput']:,} ops/sec")
         print(f"Connection Attempts: {summary['connection_attempts']}")
         print(f"Connection Failures: {summary['connection_failures']}")
+        print(f"Connection Drops: {summary['connection_drops']}")
         print(f"Connection Success Rate: {summary['connection_success_rate']}")
         print(f"Reconnection Count: {summary['reconnection_count']}")
         if summary['reconnection_count'] > 0:
