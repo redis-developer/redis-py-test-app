@@ -47,6 +47,10 @@ make test
 python main.py run --workload-profile basic_rw --duration 30
 python main.py run --workload-profile high_throughput --duration 60
 python main.py run --workload-profile basic_rw # unlimited test run
+
+# Custom value sizes
+python main.py run --workload-profile basic_rw --value-size 500 --duration 30
+python main.py run --operations SET,GET --value-size-min 100 --value-size-max 2000 --duration 60
 ```
 
 **With metrics stack (optional):**
@@ -265,6 +269,12 @@ make dev-stop
 --version VERSION           # Version label (default: dev)
 --host HOST                 # Redis host (default: localhost)
 --port PORT                 # Redis port (default: 6379)
+
+# Value Size Configuration
+--value-size BYTES          # Fixed value size in bytes (overrides min/max)
+--value-size-min BYTES      # Minimum value size in bytes (default: 100)
+--value-size-max BYTES      # Maximum value size in bytes (default: 1000)
+
 --quiet                     # Minimal output
 ```
 

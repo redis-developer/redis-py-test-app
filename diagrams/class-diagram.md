@@ -10,12 +10,9 @@ classDiagram
         +TestConfig test
         +str log_level
         +str log_file
-        +bool metrics_enabled
-        +int metrics_port
         +int metrics_interval
         +str output_file
         +bool quiet
-        +bool otel_enabled
         +str otel_endpoint
         +str otel_service_name
         +str otel_service_version
@@ -23,44 +20,49 @@ classDiagram
         +Dict[str,str] otel_resource_attributes
         +str app_name
         +str instance_id
+        +str run_id
         +str version
     }
 
     class RedisConnectionConfig {
+        +str client_name
         +str host
         +int port
+        +str username
         +str password
-        +int db
+        +int database
+        +bool use_tls
+        +bool verify_peer
+        +float timeout
+        +bool cluster_mode
+        +List[Dict[str,Any]] cluster_nodes
         +bool ssl
         +str ssl_cert_reqs
         +str ssl_ca_certs
         +str ssl_certfile
         +str ssl_keyfile
-        +bool cluster_mode
-        +List[str] cluster_nodes
-        +int socket_timeout
-        +int socket_connect_timeout
-        +int socket_keepalive
-        +Dict[str,Any] socket_keepalive_options
-        +int connection_pool_max_connections
-        +int retry_on_timeout
-        +int retry_on_error
-        +int health_check_interval
-        +str client_name
-        +str username
-        +str encoding
-        +bool decode_responses
+        +float socket_timeout
+        +float socket_connect_timeout
+        +bool socket_keepalive
+        +Dict[str,int] socket_keepalive_options
         +int max_connections
+        +bool retry_on_timeout
+        +int health_check_interval
+        +int retry_attempts
+        +float retry_delay
+        +bool exponential_backoff
     }
 
     class TestConfig {
-        +int client_instances
+        +str mode
+        +int clients
         +int connections_per_client
-        +int threads_per_client
+        +int threads_per_connection
         +int duration
         +int target_ops_per_second
         +WorkloadConfig workload
-        +str workload_profile
+        +client_instances() int
+        +threads_per_client() int
     }
 
     class WorkloadConfig {
@@ -70,14 +72,17 @@ classDiagram
         +get_option(key: str, default) Any
         +get_set_ratio() float
         +value_size() int
-        +key_range() int
+        +iteration_count() int
         +key_prefix() str
-        +operations() List[str]
-        +use_pipeline() bool
-        +pipeline_size() int
-        +pub_sub_channels() List[str]
-        +pub_sub_message_size() int
-        +pub_sub_publish_interval() float
+        +key_range() int
+        +transaction_size() int
+        +elements_count() int
+    }
+
+    class WorkloadProfiles {
+        <<static>>
+        +get_profile(profile_name: str) WorkloadConfig
+        +list_profiles() List[str]
     }
 
     %% Main Application Classes
@@ -88,7 +93,7 @@ classDiagram
         +List[RedisClientPool] _client_pools
         +List[Thread] _workload_threads
         +Thread _stats_thread
-        +bool _stop_event
+        +Event _stop_event
         +bool _running
         +run() void
         +stop() void
@@ -113,22 +118,19 @@ classDiagram
         +_build_pool_kwargs() Dict[str,Any]
         +is_connected() bool
         +reconnect() bool
+        +_execute_with_metrics(operation: str, func: callable, *args, **kwargs) Any
         +get(key: str) Any
         +set(key: str, value: Any) bool
         +delete(key: str) int
         +incr(key: str) int
         +lpush(key: str, *values) int
         +rpop(key: str) Any
-        +sadd(key: str, *members) int
-        +srem(key: str, *members) int
-        +zadd(key: str, mapping: Dict) int
-        +zrem(key: str, *members) int
-        +hset(key: str, mapping: Dict) int
-        +hget(key: str, field: str) Any
+        +lrange(key: str, start: int, end: int) List
+        +lpop(key: str) Any
+        +rpush(key: str, *values) int
         +publish(channel: str, message: str) int
         +pubsub() PubSub
         +pipeline() Pipeline
-
         +ping() bool
         +close() void
     }
@@ -168,38 +170,22 @@ classDiagram
         +execute_operation() int
     }
 
-    class HighThroughputWorkload {
-        +execute_operation() int
-    }
-
-    class ListOperationsWorkload {
-        +execute_operation() int
-    }
-
-    class SetOperationsWorkload {
-        +execute_operation() int
-    }
-
-    class SortedSetOperationsWorkload {
-        +execute_operation() int
-    }
-
-    class HashOperationsWorkload {
+    class ListWorkload {
         +execute_operation() int
     }
 
     class PipelineWorkload {
-        +int pipeline_size
+        +execute_operation() int
+    }
+
+    class TransactionWorkload {
         +execute_operation() int
     }
 
     class PubSubWorkload {
-        +List[str] channels
-        +int message_size
-        +float publish_interval
         +PubSub _pubsub
-        +Event _stop_subscriber
         +Thread _subscriber_thread
+        +Event _stop_subscriber
         +execute_operation() int
         +_subscriber_worker() void
         +cleanup() void
@@ -221,14 +207,12 @@ classDiagram
     BaseWorkload *-- WorkloadConfig
     BaseWorkload *-- RedisClientManager
     BasicWorkload --|> BaseWorkload
-    HighThroughputWorkload --|> BaseWorkload
-    ListOperationsWorkload --|> BaseWorkload
-    SetOperationsWorkload --|> BaseWorkload
-    SortedSetOperationsWorkload --|> BaseWorkload
-    HashOperationsWorkload --|> BaseWorkload
+    ListWorkload --|> BaseWorkload
     PipelineWorkload --|> BaseWorkload
+    TransactionWorkload --|> BaseWorkload
     PubSubWorkload --|> BaseWorkload
     WorkloadFactory ..> BaseWorkload : creates
+    WorkloadProfiles ..> WorkloadConfig : creates
 ```
 
 ## Metrics and Logging Classes
@@ -237,15 +221,13 @@ classDiagram
 classDiagram
     %% Metrics Classes
     class MetricsCollector {
-        +bool enable_prometheus
-        +int prometheus_port
-        +bool enable_otel
         +str otel_endpoint
         +str service_name
         +str service_version
         +int otel_export_interval_ms
         +str app_name
         +str instance_id
+        +str run_id
         +str version
         +RLock _lock
         +Dict[str,OperationMetrics] _metrics
@@ -253,29 +235,27 @@ classDiagram
         +float _last_reset_time
         +int _connection_attempts
         +int _connection_failures
+        +int _connection_drops
         +int _reconnection_count
         +float _reconnection_duration
         +Meter meter
         +Counter otel_operations_counter
         +Histogram otel_operation_duration
         +Counter otel_connections_counter
+        +Counter otel_connection_drops_counter
         +Histogram otel_reconnection_duration
-        +Counter prom_operations_total
-        +Histogram prom_operation_duration
-        +Counter prom_connections_total
-        +Gauge prom_active_connections
-        +Histogram prom_reconnection_duration
-        +Gauge prom_error_rate
+        +Gauge otel_active_connections
+        +Counter otel_pubsub_operations_counter
         +_setup_opentelemetry() void
-        +_setup_prometheus_metrics() void
         +record_operation(operation: str, duration: float, success: bool, error_type: str) void
         +record_connection_attempt(success: bool) void
+        +record_connection_drop() void
         +record_reconnection(duration: float) void
         +update_active_connections(count: int) void
-
-        +get_stats() Dict[str,Any]
-        +get_detailed_stats() Dict[str,Any]
-        +reset_stats() void
+        +record_pubsub_operation(operation: str, success: bool) void
+        +get_overall_stats() Dict[str,Any]
+        +get_final_summary() Dict[str,Any]
+        +reset_interval_metrics() void
         +export_to_json(filename: str) void
     }
 
@@ -300,14 +280,13 @@ classDiagram
         +log_connection_event(event_type: str, details: Dict) void
     }
 
-    %% CLI Classes
-    class CLI {
-        +cli() void
-        +run(config: RunnerConfig) void
-        +test_connection(config: RunnerConfig) void
-        +_load_config_from_env() RunnerConfig
-        +_validate_config(config: RunnerConfig) void
-    }
+    %% CLI Functions (not classes)
+    note for CLI "CLI is implemented as functions in cli.py:
+    - cli() - Main CLI group
+    - run() - Run load test
+    - list_profiles() - List workload profiles
+    - describe_profile() - Describe profile
+    - test_connection() - Test Redis connection"
 
     %% Relationships
     MetricsCollector *-- OperationMetrics

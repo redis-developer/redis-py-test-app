@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 import json
 
 from config import WorkloadConfig
-from redis_client import RedisClientManager
+from redis_client import RedisClient
 from logger import get_logger, log_error_with_traceback
 from metrics import get_metrics_collector
 
@@ -19,7 +19,7 @@ from metrics import get_metrics_collector
 class BaseWorkload(ABC):
     """Base class for Redis workloads."""
     
-    def __init__(self, config: WorkloadConfig, client: RedisClientManager):
+    def __init__(self, config: WorkloadConfig, client: RedisClient):
         self.config = config
         self.client = client
         self.logger = get_logger()
@@ -298,7 +298,7 @@ class TransactionWorkload(BaseWorkload):
 class PubSubWorkload(BaseWorkload):
     """Publish/Subscribe operations."""
     
-    def __init__(self, config: WorkloadConfig, client: RedisClientManager):
+    def __init__(self, config: WorkloadConfig, client: RedisClient):
         super().__init__(config, client)
         self._pubsub = None
         self._subscriber_thread = None
@@ -409,7 +409,7 @@ class WorkloadFactory:
     """Factory for creating workload instances."""
     
     @staticmethod
-    def create_workload(config: WorkloadConfig, client: RedisClientManager) -> BaseWorkload:
+    def create_workload(config: WorkloadConfig, client: RedisClient) -> BaseWorkload:
         """Create appropriate workload based on configuration."""
 
         # Determine workload type based on workload type or operations

@@ -8,19 +8,16 @@ import redis
 import redis.sentinel
 from redis.cluster import RedisCluster
 from redis.exceptions import (
-    ConnectionError, TimeoutError, RedisError,
-    ClusterDownError, ResponseError
+    ConnectionError, TimeoutError, ClusterDownError
 )
 import ssl
-# import asyncio
-# import aioredis
 
 from config import RedisConnectionConfig
-from logger import get_logger, log_error_with_traceback
+from logger import get_logger
 from metrics import get_metrics_collector
 
 
-class RedisClientManager:
+class RedisClient:
     """Manages Redis connections with automatic reconnection and error handling."""
     
     def __init__(self, config: RedisConnectionConfig):
@@ -96,19 +93,15 @@ class RedisClientManager:
                 
                 connection_duration = time.time() - start_time
                 self.logger.info(f"Successfully connected to Redis in {connection_duration:.3f}s")
-                self.metrics.record_connection_attempt(True)
-                self.metrics.update_active_connections(1)
-                
+
                 # Reset backoff on successful connection
                 self._connection_backoff = 1.0
                 
                 return True
                 
             except Exception as e:
-                connection_duration = time.time() - start_time
                 self.logger.error(f"Failed to connect to Redis: {e}")
-                self.metrics.record_connection_attempt(False)
-                
+
                 # Exponential backoff
                 if self.config.exponential_backoff:
                     self._connection_backoff = min(self._connection_backoff * 2, 60.0)
@@ -138,25 +131,23 @@ class RedisClientManager:
             skip_full_coverage_check=True,
             **self._pool_kwargs
         )
-    
+
     def _ensure_connection(self) -> bool:
         """Ensure we have a valid connection, reconnecting if necessary."""
         if self._client is None:
             return self._reconnect()
-        
+
         try:
             # Quick health check
             self._client.ping()
             return True
         except (ConnectionError, TimeoutError, ClusterDownError) as e:
             self.logger.warning(f"Connection lost ({type(e).__name__}), attempting to reconnect...")
-            self.metrics.record_connection_drop(type(e).__name__.lower())
             return self._reconnect()
         except Exception as e:
             self.logger.error(f"Unexpected error during connection check: {e}")
-            self.metrics.record_connection_drop("unexpected_error")
             return self._reconnect()
-    
+
     def _reconnect(self) -> bool:
         """Reconnect to Redis with retry logic."""
         current_time = time.time()
@@ -168,12 +159,9 @@ class RedisClientManager:
         self._last_connection_attempt = current_time
         
         self.logger.info("Attempting to reconnect to Redis...")
-        reconnect_start = time.time()
-        
+
         for attempt in range(self.config.retry_attempts):
             if self._connect():
-                reconnect_duration = time.time() - reconnect_start
-                self.metrics.record_reconnection(reconnect_duration)
                 self.logger.info(f"Reconnected successfully after {attempt + 1} attempts")
                 return True
             
@@ -189,9 +177,6 @@ class RedisClientManager:
     
     def pipeline(self, transaction: bool = True):
         """Create a pipeline for batch operations."""
-        if not self._ensure_connection():
-            raise ConnectionError("No Redis connection available")
-        
         return self._client.pipeline(transaction=transaction)
     
     def pubsub(self, **kwargs):
@@ -214,8 +199,7 @@ class RedisClientManager:
                     self.logger.warning(f"Error closing Redis connection: {e}")
                 finally:
                     self._client = None
-                    self.metrics.update_active_connections(0)
-    
+
     def get_info(self) -> Dict[str, Any]:
         """Get Redis server information."""
         return self._client.info()
@@ -322,58 +306,4 @@ class RedisClientManager:
         return self._client.pipeline(transaction=transaction)
 
 
-class RedisClientPool:
-    """Pool of Redis clients for multi-threaded access."""
-    
-    def __init__(self, config: RedisConnectionConfig, pool_size: int = 10):
-        self.config = config
-        self.pool_size = pool_size
-        self.logger = get_logger()
-        
-        self._clients: List[RedisClientManager] = []
-        self._available_clients: List[RedisClientManager] = []
-        self._lock = threading.Lock()
-        
-        # Initialize client pool
-        self._initialize_pool()
-    
-    def _initialize_pool(self):
-        """Initialize the client pool."""
-        for i in range(self.pool_size):
-            try:
-                client = RedisClientManager(self.config)
-                self._clients.append(client)
-                self._available_clients.append(client)
-            except Exception as e:
-                self.logger.error(f"Failed to create Redis client {i}: {e}")
-    
-    def get_client(self) -> Optional[RedisClientManager]:
-        """Get an available client from the pool."""
-        with self._lock:
-            if self._available_clients:
-                return self._available_clients.pop()
-            
-            # If no clients available, try to create a new one
-            if len(self._clients) < self.pool_size * 2:  # Allow some overflow
-                try:
-                    client = RedisClientManager(self.config)
-                    self._clients.append(client)
-                    return client
-                except Exception as e:
-                    self.logger.error(f"Failed to create additional Redis client: {e}")
-            
-            return None
-    
-    def return_client(self, client: RedisClientManager):
-        """Return a client to the pool."""
-        with self._lock:
-            if client in self._clients and client not in self._available_clients:
-                self._available_clients.append(client)
-    
-    def close_all(self):
-        """Close all clients in the pool."""
-        with self._lock:
-            for client in self._clients:
-                client.close()
-            self._clients.clear()
-            self._available_clients.clear()
+

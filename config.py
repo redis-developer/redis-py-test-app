@@ -158,26 +158,19 @@ class WorkloadConfig:
 
 @dataclass
 class TestConfig:
-    """Test configuration matching lettuce-test-app structure."""
+    """Simplified test configuration with clear terminology."""
     mode: str = "standalone"  # standalone, cluster
-    clients: int = 1  # Number of client instances
-    connections_per_client: int = 1  # Number of connections per client
-    threads_per_connection: int = 1  # Number of threads sharing same connection
+    redis_clients: int = 4  # Number of Redis client instances (each has connection pool)
+    worker_threads: int = 8  # Total number of worker threads (shared across clients)
 
     # Test duration (None = unlimited, integer = seconds)
     duration: Optional[int] = None  # Duration in seconds, None for unlimited
 
+    # Target operations per second (None = unlimited)
+    target_ops_per_second: Optional[int] = None
+
     # Workload configuration
     workload: WorkloadConfig = field(default_factory=WorkloadConfig)
-
-    # Legacy properties for backward compatibility
-    @property
-    def client_instances(self) -> int:
-        return self.clients
-
-    @property
-    def threads_per_client(self) -> int:
-        return self.threads_per_connection
 
 
 @dataclass
@@ -333,9 +326,10 @@ def save_config_to_file(config: RunnerConfig, file_path: str):
         'redis': config.redis.__dict__,
         'test': {
             'mode': config.test.mode,
-            'clients': config.test.clients,
-            'connections_per_client': config.test.connections_per_client,
-            'threads_per_connection': config.test.threads_per_connection,
+            'redis_clients': config.test.redis_clients,
+            'worker_threads': config.test.worker_threads,
+            'duration': config.test.duration,
+            'target_ops_per_second': config.test.target_ops_per_second,
             'workload': config.test.workload.__dict__
         },
         'log_level': config.log_level,

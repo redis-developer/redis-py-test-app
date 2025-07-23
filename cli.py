@@ -42,6 +42,9 @@ def cli():
 
 
 @cli.command()
+# ============================================================================
+# Redis Connection Parameters
+# ============================================================================
 @click.option('--host', default=lambda: get_env_or_default('REDIS_HOST', 'localhost'), help='Redis host')
 @click.option('--port', type=int, default=lambda: get_env_or_default('REDIS_PORT', 6379, int), help='Redis port')
 @click.option('--password', default=lambda: get_env_or_default('REDIS_PASSWORD', None), help='Redis password')
@@ -59,38 +62,65 @@ def cli():
 @click.option('--retry-attempts', type=int, default=lambda: get_env_or_default('REDIS_RETRY_ATTEMPTS', 3, int), help='Number of retry attempts for failed operations')
 @click.option('--retry-delay', type=float, default=lambda: get_env_or_default('REDIS_RETRY_DELAY', 0.1, float), help='Delay between retry attempts')
 @click.option('--exponential-backoff', is_flag=True, default=lambda: get_env_or_default('REDIS_EXPONENTIAL_BACKOFF', True, bool), help='Use exponential backoff for retries')
-@click.option('--client-instances', type=int, default=lambda: get_env_or_default('TEST_CLIENT_INSTANCES', 1, int), help='Number of client instances')
-@click.option('--connections-per-client', type=int, default=lambda: get_env_or_default('TEST_CONNECTIONS_PER_CLIENT', 10, int), help='Number of connections per client instance')
-@click.option('--threads-per-client', type=int, default=lambda: get_env_or_default('TEST_THREADS_PER_CLIENT', 4, int), help='Number of threads per client instance')
+
+# ============================================================================
+# Test Configuration Parameters
+# ============================================================================
 @click.option('--duration', type=int, default=lambda: get_env_or_default('TEST_DURATION', None, int), help='Test duration in seconds (unlimited if not specified)')
 @click.option('--target-ops-per-second', type=int, default=lambda: get_env_or_default('TEST_TARGET_OPS_PER_SECOND', None, int), help='Target operations per second')
+@click.option('--redis-clients', type=int, default=lambda: get_env_or_default('TEST_REDIS_CLIENTS', 4, int), help='Number of Redis client instances (each has its own connection pool)')
+@click.option('--worker-threads', type=int, default=lambda: get_env_or_default('TEST_WORKER_THREADS', 8, int), help='Total number of worker threads (shared across all Redis clients)')
+@click.option('--metrics-interval', type=int, default=lambda: get_env_or_default('METRICS_INTERVAL', 5, int), help='Interval for stats reporting in seconds')
+
+# ============================================================================
+# Workload Configuration Parameters
+# ============================================================================
 @click.option('--workload-profile', type=click.Choice(WorkloadProfiles.list_profiles()), default=lambda: get_env_or_default('TEST_WORKLOAD_PROFILE', None), help='Pre-defined workload profile')
 @click.option('--operations', default=lambda: get_env_or_default('TEST_OPERATIONS', 'SET,GET'), help='Comma-separated list of Redis operations')
 @click.option('--operation-weights', default=lambda: get_env_or_default('TEST_OPERATION_WEIGHTS', None), help='JSON string of operation weights (e.g., {"SET": 0.4, "GET": 0.6})')
 @click.option('--key-prefix', default=lambda: get_env_or_default('TEST_KEY_PREFIX', 'test_key'), help='Prefix for generated keys')
 @click.option('--key-range', type=int, default=lambda: get_env_or_default('TEST_KEY_RANGE', 10000, int), help='Range of key IDs to use')
+@click.option('--read-write-ratio', type=float, default=lambda: get_env_or_default('TEST_READ_WRITE_RATIO', 0.7, float), help='Ratio of read operations (0.0-1.0)')
+@click.option('--value-size', type=int, default=lambda: get_env_or_default('TEST_VALUE_SIZE', None, int), help='Fixed value size in bytes (overrides min/max)')
 @click.option('--value-size-min', type=int, default=lambda: get_env_or_default('TEST_VALUE_SIZE_MIN', 100, int), help='Minimum value size in bytes')
 @click.option('--value-size-max', type=int, default=lambda: get_env_or_default('TEST_VALUE_SIZE_MAX', 1000, int), help='Maximum value size in bytes')
-@click.option('--read-write-ratio', type=float, default=lambda: get_env_or_default('TEST_READ_WRITE_RATIO', 0.7, float), help='Ratio of read operations (0.0-1.0)')
+
+# ============================================================================
+# Pipeline & Advanced Parameters
+# ============================================================================
 @click.option('--use-pipeline', is_flag=True, default=lambda: get_env_or_default('TEST_USE_PIPELINE', False, bool), help='Use Redis pipelining')
 @click.option('--pipeline-size', type=int, default=lambda: get_env_or_default('TEST_PIPELINE_SIZE', 10, int), help='Number of operations per pipeline')
 @click.option('--async-mode', is_flag=True, default=lambda: get_env_or_default('TEST_ASYNC_MODE', False, bool), help='Use asynchronous operations')
-@click.option('--pubsub-channels', default=lambda: get_env_or_default('TEST_PUBSUB_CHANNELS', None), help='Comma-separated list of pub/sub channels')
 @click.option('--transaction-size', type=int, default=lambda: get_env_or_default('TEST_TRANSACTION_SIZE', 5, int), help='Number of operations per transaction')
+@click.option('--pubsub-channels', default=lambda: get_env_or_default('TEST_PUBSUB_CHANNELS', None), help='Comma-separated list of pub/sub channels')
+
+# ============================================================================
+# Logging & Output Parameters
+# ============================================================================
 @click.option('--log-level', default=lambda: get_env_or_default('LOG_LEVEL', 'INFO'), type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']), help='Logging level')
 @click.option('--log-file', default=lambda: get_env_or_default('LOG_FILE', None), help='Log file path')
+@click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for final test summary (JSON). If not provided, prints to stdout.')
+@click.option('--quiet', is_flag=True, default=False, help='Suppress periodic stats output')
 
-@click.option('--metrics-interval', type=int, default=lambda: get_env_or_default('METRICS_INTERVAL', 5, int), help='Metrics reporting interval in seconds')
-
+# ============================================================================
+# OpenTelemetry & Metrics Parameters
+# ============================================================================
 @click.option('--otel-endpoint', default=lambda: get_env_or_default('OTEL_EXPORTER_OTLP_ENDPOINT', None), help='OpenTelemetry OTLP endpoint')
 @click.option('--otel-service-name', default=lambda: get_env_or_default('OTEL_SERVICE_NAME', 'redis-load-test'), help='OpenTelemetry service name')
 @click.option('--otel-export-interval', type=int, default=lambda: get_env_or_default('OTEL_EXPORT_INTERVAL', 5000, int), help='OpenTelemetry export interval in milliseconds')
+@click.option('--metrics-interval', type=int, default=lambda: get_env_or_default('METRICS_INTERVAL', 5, int), help='Metrics reporting interval in seconds')
+
+# ============================================================================
+# Application Identification Parameters
+# ============================================================================
 @click.option('--app-name', default=lambda: get_env_or_default('APP_NAME', 'python'), help='Application name for multi-app filtering (python, go, java, etc.)')
 @click.option('--instance-id', default=lambda: get_env_or_default('INSTANCE_ID', None), help='Unique instance identifier (auto-generated if not provided)')
 @click.option('--run-id', default=lambda: get_env_or_default('RUN_ID', None), help='Unique run identifier (auto-generated if not provided)')
 @click.option('--version', default=lambda: get_env_or_default('VERSION', None), help='Version identifier (defaults to redis-py package version)')
-@click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for final test summary (JSON). If not provided, prints to stdout.')
-@click.option('--quiet', is_flag=True, default=False, help='Suppress periodic stats output')
+
+# ============================================================================
+# Configuration File Parameters
+# ============================================================================
 @click.option('--config-file', default=lambda: get_env_or_default('CONFIG_FILE', None), help='Load configuration from YAML/JSON file')
 @click.option('--save-config', help='Save current configuration to file')
 def run(**kwargs):
@@ -209,8 +239,8 @@ def test_connection():
             ssl=get_env_or_default('REDIS_SSL', False, bool)
         )
         
-        from redis_client import RedisClientManager
-        client = RedisClientManager(redis_config)
+        from redis_client import RedisClient
+        client = RedisClient(redis_config)
         
         # Test basic operations
         client.ping()
@@ -274,28 +304,46 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         workload_config = WorkloadProfiles.get_profile(kwargs['workload_profile'])
     else:
         operations = [op.strip() for op in kwargs['operations'].split(',')]
+
+        # Build options dictionary
+        options = {
+            "operations": operations,
+            "keyPrefix": kwargs['key_prefix'],
+            "keyRange": kwargs['key_range'],
+            "readWriteRatio": kwargs['read_write_ratio'],
+            "usePipeline": kwargs['use_pipeline'],
+            "pipelineSize": kwargs['pipeline_size'],
+            "asyncMode": kwargs['async_mode'],
+            "transactionSize": kwargs['transaction_size']
+        }
+
+        # Handle value size - if fixed size is provided, use it; otherwise use min/max
+        if kwargs['value_size'] is not None:
+            options["valueSize"] = kwargs['value_size']
+        else:
+            options["valueSizeMin"] = kwargs['value_size_min']
+            options["valueSizeMax"] = kwargs['value_size_max']
+
+        # Add operation weights if provided
+        if operation_weights:
+            options["operation_weights"] = operation_weights
+
+        # Add pubsub channels if provided
+        if pubsub_channels:
+            options["channels"] = pubsub_channels
+
         workload_config = WorkloadConfig(
-            operations=operations,
-            operation_weights=operation_weights,
-            key_prefix=kwargs['key_prefix'],
-            key_range=kwargs['key_range'],
-            value_size_min=kwargs['value_size_min'],
-            value_size_max=kwargs['value_size_max'],
-            read_write_ratio=kwargs['read_write_ratio'],
-            use_pipeline=kwargs['use_pipeline'],
-            pipeline_size=kwargs['pipeline_size'],
-            async_mode=kwargs['async_mode'],
-            pubsub_channels=pubsub_channels,
-            transaction_size=kwargs['transaction_size']
+            type="custom",
+            options=options
         )
 
     # Build test config
     test_config = TestConfig(
         mode="cluster" if kwargs.get('cluster', False) else "standalone",
-        clients=kwargs['client_instances'],
-        connections_per_client=kwargs['connections_per_client'],
-        threads_per_connection=kwargs['threads_per_client'],
-        duration=kwargs['duration'],  # Add duration support
+        redis_clients=kwargs['redis_clients'],
+        worker_threads=kwargs['worker_threads'],
+        duration=kwargs['duration'],
+        target_ops_per_second=kwargs['target_ops_per_second'],
         workload=workload_config
     )
 
@@ -332,14 +380,11 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
 
 def _validate_config(config: RunnerConfig):
     """Validate configuration parameters."""
-    if config.test.client_instances <= 0:
-        raise ValueError("client_instances must be greater than 0")
+    if config.test.redis_clients <= 0:
+        raise ValueError("redis_clients must be greater than 0")
 
-    if config.test.connections_per_client <= 0:
-        raise ValueError("connections_per_client must be greater than 0")
-
-    if config.test.threads_per_client <= 0:
-        raise ValueError("threads_per_client must be greater than 0")
+    if config.test.worker_threads <= 0:
+        raise ValueError("worker_threads must be greater than 0")
 
     if not config.test.workload.type:
         raise ValueError("Workload type must be specified")
