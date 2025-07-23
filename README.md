@@ -359,6 +359,10 @@ python main.py run \
 **Example Final Summary Output:**
 ```json
 {
+  "app_name": "python-basic-rw",
+  "instance_id": "python-basic-rw-a1b2c3d4",
+  "run_id": "550e8400-e29b-41d4-a716-446655440000",
+  "version": "redis-py-5.0.1",
   "test_duration": "60.0s",
   "workload_name": "basic_rw",
   "total_commands_count": 1234567,
@@ -368,9 +372,18 @@ python main.py run \
   "overall_throughput": 20576,
   "connection_attempts": 5,
   "connection_failures": 0,
+  "connection_drops": 0,
   "connection_success_rate": "100.00%",
   "reconnection_count": 0,
-  "avg_reconnection_duration_ms": 0
+  "avg_reconnection_duration_ms": 0,
+  "run_start": 1703097600.123,
+  "run_end": 1703097660.456,
+  "min_latency_ms": 0.12,
+  "max_latency_ms": 45.67,
+  "median_latency_ms": 1.23,
+  "p95_latency_ms": 3.45,
+  "p99_latency_ms": 8.90,
+  "avg_latency_ms": 1.56
 }
 ```
 
@@ -509,6 +522,10 @@ python main.py run --workload-profile basic_rw --duration 60 --output-file resul
 Example output:
 ```json
 {
+  "app_name": "python-basic-rw",
+  "instance_id": "python-basic-rw-a1b2c3d4",
+  "run_id": "550e8400-e29b-41d4-a716-446655440000",
+  "version": "redis-py-5.0.1",
   "test_duration": "60.0s",
   "workload_name": "basic_rw",
   "total_commands_count": 1234567,
@@ -518,9 +535,18 @@ Example output:
   "overall_throughput": 20576,
   "connection_attempts": 5,
   "connection_failures": 0,
+  "connection_drops": 0,
   "connection_success_rate": "100.00%",
   "reconnection_count": 0,
-  "avg_reconnection_duration_ms": 0
+  "avg_reconnection_duration_ms": 0,
+  "run_start": 1703097600.123,
+  "run_end": 1703097660.456,
+  "min_latency_ms": 0.12,
+  "max_latency_ms": 45.67,
+  "median_latency_ms": 1.23,
+  "p95_latency_ms": 3.45,
+  "p99_latency_ms": 8.90,
+  "avg_latency_ms": 1.56
 }
 ```
 

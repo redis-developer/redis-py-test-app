@@ -254,6 +254,7 @@ class MetricsCollector:
         labels = {
             "app_name": self.app_name,
             "instance_id": self.instance_id,
+            "run_id": self.run_id,
             "version": self.version
         }
         # Use set() for gauge metrics, not add()
