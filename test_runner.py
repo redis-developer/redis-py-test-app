@@ -85,12 +85,6 @@ class TestRunner:
             
             while not self._stop_event.is_set():
                 try:
-                    # Check duration limit - using workload max_duration for now
-                    # if self.config.duration:
-                    #     elapsed = time.time() - start_time
-                    #     if elapsed >= self.config.duration:
-                    #         break
-                    
                     # Execute operation
                     ops_executed = workload.execute_operation()
 

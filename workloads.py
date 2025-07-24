@@ -89,36 +89,6 @@ class BaseWorkload(ABC):
     def execute_operation(self) -> int:
         """Execute operation(s). Returns number of operations executed (0 if failed)."""
         pass
-    
-    def run_continuous(self, duration: Optional[int] = None, target_ops_per_second: Optional[int] = None):
-        """Run workload continuously for specified duration."""
-        start_time = time.time()
-        operation_count = 0
-        
-        while True:
-            # Check duration limit
-            if duration and (time.time() - start_time) >= duration:
-                break
-            
-            # Execute operation
-            try:
-                success = self.execute_operation()
-                operation_count += 1
-                
-                # Rate limiting
-                if target_ops_per_second:
-                    elapsed = time.time() - start_time
-                    expected_ops = elapsed * target_ops_per_second
-                    if operation_count > expected_ops:
-                        sleep_time = (operation_count - expected_ops) / target_ops_per_second
-                        time.sleep(sleep_time)
-                
-            except KeyboardInterrupt:
-                self.logger.info("Workload interrupted by user")
-                break
-            except Exception as e:
-                log_error_with_traceback("Error in workload execution", e)
-
 
 class BasicWorkload(BaseWorkload):
     """Basic Redis operations: SET, GET, DEL, INCR."""
@@ -209,8 +179,7 @@ class PipelineWorkload(BaseWorkload):
 
             # Add multiple operations to pipeline and track them individually
             pipeline_size = self.config.get_option("pipelineSize", 10)
-            operations_added = 0
-            operation_list = []  # Track operations for individual metrics
+            operations = []  # Track operations for individual metrics
 
             for _ in range(pipeline_size):
                 operation = self._choose_operation()
@@ -219,33 +188,30 @@ class PipelineWorkload(BaseWorkload):
                     key = self._generate_key()
                     value = self._generate_value()
                     pipe.set(key, value)
-                    operations_added += 1
-                    operation_list.append(operation)
 
                 elif operation == "GET":
                     key = self._generate_key()
                     pipe.get(key)
-                    operations_added += 1
-                    operation_list.append(operation)
 
                 elif operation == "INCR":
                     key = self._generate_key()
                     pipe.incr(key)
-                    operations_added += 1
-                    operation_list.append(operation)
 
-            # Execute pipeline only if we have operations
-            if operations_added > 0:
+                operations.append(operation)
+
+            # Execute pipeline
+            operations_count = len(operations)
+            if operations_count > 0:
                 start_time = time.time()
-                result = pipe.execute()
+                pipe.execute()
                 duration = time.time() - start_time
 
                 # Record individual operation metrics
-                avg_duration = duration / operations_added if operations_added > 0 else 0
-                for operation in operation_list:
+                avg_duration = duration / operations_count if operations_count > 0 else 0
+                for operation in operations:
                     self.metrics.record_operation(operation, avg_duration, True)
 
-                return operations_added  # Return number of operations executed
+                return operations_count  # Return number of operations executed
             else:
                 self.logger.warning(f"No operations added to pipeline. Available operations: {self.config.get_option('operations', [])}")
                 return 0
@@ -265,7 +231,7 @@ class TransactionWorkload(BaseWorkload):
 
             # Add operations to transaction
             transaction_size = self.config.get_option("transactionSize", 5)
-            operations_added = 0
+            operations = []
 
             for _ in range(transaction_size):
                 operation = self._choose_operation()
@@ -274,21 +240,35 @@ class TransactionWorkload(BaseWorkload):
                     key = self._generate_key()
                     value = self._generate_value()
                     pipe.set(key, value)
-                    operations_added += 1
 
                 elif operation == "GET":
                     key = self._generate_key()
                     pipe.get(key)
-                    operations_added += 1
 
                 elif operation == "INCR":
                     key = self._generate_key()
                     pipe.incr(key)
-                    operations_added += 1
+
+                operations.append(operation)
 
             # Execute transaction
-            pipe.execute()
-            return operations_added  # Return number of operations in transaction
+            operations_count = len(operations)
+            if operations_count > 0:
+                start_time = time.time()
+                pipe.execute()
+                duration = time.time() - start_time
+
+                # Record individual operation metrics
+                avg_duration = duration / operations_count if operations_count > 0 else 0
+                for operation in operations:
+                    self.metrics.record_operation(operation, avg_duration, True)
+
+                return operations_count  # Return number of operations executed
+
+            else:
+                self.logger.warning(
+                    f"No operations added to transaction pipeline. Available operations: {self.config.get_option('operations', [])}")
+                return 0
 
         except Exception as e:
             self.logger.error(f"Failed to execute transaction: {e}")
