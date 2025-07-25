@@ -295,7 +295,7 @@ class WorkloadProfiles:
     @staticmethod
     def list_profiles() -> List[str]:
         """List available workload profiles."""
-        return ["basic_rw", "high_throughput", "list_operations", "pubsub_heavy", "transaction_heavy", "async_mixed"]
+        return ["basic_rw", "high_throughput", "list_operations", "pubsub_heavy", "transaction_heavy"]
 
 
 def load_config_from_file(file_path: str) -> RunnerConfig:
