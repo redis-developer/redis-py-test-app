@@ -272,6 +272,7 @@ class TransactionWorkload(BaseWorkload):
 
         except Exception as e:
             self.logger.error(f"Failed to execute transaction: {e}")
+            self.metrics.record_operation("MULTI/EXEC", 0, False, error_type=type(e).__name__)
             return 0
 
 
