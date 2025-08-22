@@ -309,7 +309,7 @@ class PubSubWorkload(BaseWorkload):
                         channel_name = message['channel'].decode() if isinstance(message['channel'], bytes) else str(message['channel'])
 
                         # Record receive metrics using unified pub/sub metric
-                        self.metrics.record_pubsub_operation(channel_name, 'receive', self._subscriber_id, success=True)
+                        self.metrics.record_pubsub_operation(channel_name, 'RECEIVE', self._subscriber_id, success=True)
 
                         self.logger.debug(f"Received message on {channel_name}: {message['data']}")
 
@@ -322,7 +322,7 @@ class PubSubWorkload(BaseWorkload):
                         # Use default channel for error tracking
                         channels = self.config.get_option("channels", ["test_channel"])
                         default_channel = channels[0] if channels else "unknown"
-                        self.metrics.record_pubsub_operation(default_channel, 'receive', self._subscriber_id, success=False, error_type=type(e).__name__)
+                        self.metrics.record_pubsub_operation(default_channel, 'RECEIVE', self._subscriber_id, success=False, error_type=type(e).__name__)
                         self.logger.debug(f"Subscriber error (continuing): {e}")
                     break
 

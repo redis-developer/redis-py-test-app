@@ -5,7 +5,6 @@ import click
 import sys
 import json
 import os
-from pathlib import Path
 from dotenv import load_dotenv
 
 from config import RunnerConfig, TestConfig, RedisConnectionConfig, WorkloadConfig, WorkloadProfiles, get_redis_version
@@ -59,18 +58,15 @@ def cli():
 @click.option('--socket-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_TIMEOUT', 5.0, float), help='Socket timeout in seconds')
 @click.option('--socket-connect-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_CONNECT_TIMEOUT', 5.0, float), help='Socket connect timeout in seconds')
 @click.option('--max-connections', type=int, default=lambda: get_env_or_default('REDIS_MAX_CONNECTIONS', 50, int), help='Maximum connections per client')
-@click.option('--retry-attempts', type=int, default=lambda: get_env_or_default('REDIS_RETRY_ATTEMPTS', 3, int), help='Number of retry attempts for failed operations')
-@click.option('--retry-delay', type=float, default=lambda: get_env_or_default('REDIS_RETRY_DELAY', 0.1, float), help='Delay between retry attempts')
-@click.option('--exponential-backoff', is_flag=True, default=lambda: get_env_or_default('REDIS_EXPONENTIAL_BACKOFF', True, bool), help='Use exponential backoff for retries')
+@click.option('--client-retry-attempts', type=int, default=lambda: get_env_or_default('REDIS_CLIENT_RETRY_ATTEMPTS', 3, int), help='Number of client-level retry attempts for network/connection issues (uses redis-py Retry class)')
+@click.option('--maintenance-events-enabled', is_flag=True, default=lambda: get_env_or_default('REDIS_MAINT_EVENTS_ENABLED', True, bool), help='Server maintenance events (hitless upgrades push notifications)')
 
 # ============================================================================
 # Test Configuration Parameters
 # ============================================================================
 @click.option('--duration', type=int, default=lambda: get_env_or_default('TEST_DURATION', None, int), help='Test duration in seconds (unlimited if not specified)')
 @click.option('--target-ops-per-second', type=int, default=lambda: get_env_or_default('TEST_TARGET_OPS_PER_SECOND', None, int), help='Target operations per second')
-@click.option('--redis-clients', type=int, default=lambda: get_env_or_default('TEST_REDIS_CLIENTS', 4, int), help='Number of Redis client instances (each has its own connection pool)')
-@click.option('--worker-threads', type=int, default=lambda: get_env_or_default('TEST_WORKER_THREADS', 8, int), help='Total number of worker threads (shared across all Redis clients)')
-@click.option('--metrics-interval', type=int, default=lambda: get_env_or_default('METRICS_INTERVAL', 5, int), help='Interval for stats reporting in seconds')
+@click.option('--clients', type=int, default=lambda: get_env_or_default('TEST_CLIENTS', 4, int), help='Number of Redis clients (each with its own thread)')
 
 # ============================================================================
 # Workload Configuration Parameters
@@ -294,9 +290,8 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         socket_timeout=kwargs['socket_timeout'],
         socket_connect_timeout=kwargs['socket_connect_timeout'],
         max_connections=kwargs['max_connections'],
-        retry_attempts=kwargs['retry_attempts'],
-        retry_delay=kwargs['retry_delay'],
-        exponential_backoff=kwargs['exponential_backoff']
+        client_retry_attempts=kwargs['client_retry_attempts'],
+        maintenance_events_enabled=kwargs['maintenance_events_enabled']
     )
 
     # Build workload config
@@ -340,8 +335,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
     # Build test config
     test_config = TestConfig(
         mode="cluster" if kwargs.get('cluster', False) else "standalone",
-        redis_clients=kwargs['redis_clients'],
-        worker_threads=kwargs['worker_threads'],
+        clients=kwargs['clients'],
         duration=kwargs['duration'],
         target_ops_per_second=kwargs['target_ops_per_second'],
         workload=workload_config
@@ -380,11 +374,8 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
 
 def _validate_config(config: RunnerConfig):
     """Validate configuration parameters."""
-    if config.test.redis_clients <= 0:
-        raise ValueError("redis_clients must be greater than 0")
-
-    if config.test.worker_threads <= 0:
-        raise ValueError("worker_threads must be greater than 0")
+    if config.test.clients <= 0:
+        raise ValueError("Number of clients must be greater than 0")
 
     if not config.test.workload.type:
         raise ValueError("Workload type must be specified")

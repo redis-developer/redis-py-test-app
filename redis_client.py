@@ -2,11 +2,12 @@
 Redis client management with support for standalone, cluster, and TLS connections.
 """
 import time
-import threading
 from typing import Optional, List, Dict, Any, Union
 import redis
 import redis.sentinel
 from redis.cluster import RedisCluster
+from redis.retry import Retry
+from redis.backoff import ExponentialWithJitterBackoff
 from redis.exceptions import (
     ConnectionError, TimeoutError, ClusterDownError
 )
@@ -26,10 +27,7 @@ class RedisClient:
         self.metrics = get_metrics_collector()
         
         self._client: Optional[Union[redis.Redis, RedisCluster]] = None
-        self._connection_lock = threading.RLock()
-        self._last_connection_attempt = 0
-        self._connection_backoff = 1.0
-        
+
         # Connection pool configuration
         self._pool_kwargs = self._build_pool_kwargs()
         
@@ -44,10 +42,12 @@ class RedisClient:
             'socket_keepalive': self.config.socket_keepalive,
             'socket_keepalive_options': self.config.socket_keepalive_options,
             'max_connections': self.config.max_connections,
-            'retry_on_timeout': self.config.retry_on_timeout,
-            'health_check_interval': self.config.health_check_interval,
         }
-        
+
+        # Create Retry object for client-level retries (network/connection issues)
+        if self.config.client_retry_attempts > 0:
+            kwargs['retry'] = Retry(ExponentialWithJitterBackoff(), self.config.client_retry_attempts)
+
         # Add authentication if provided
         if self.config.password:
             kwargs['password'] = self.config.password
@@ -79,44 +79,40 @@ class RedisClient:
     
     def _connect(self) -> bool:
         """Establish connection to Redis."""
-        with self._connection_lock:
-            start_time = time.time()
-            
-            try:
-                if self.config.cluster_mode:
-                    self._connect_cluster()
-                else:
-                    self._connect_standalone()
-                
-                # Test connection
-                self._client.ping()
-                
-                connection_duration = time.time() - start_time
-                self.logger.info(f"Successfully connected to Redis in {connection_duration:.3f}s")
+        start_time = time.time()
 
-                # Reset backoff on successful connection
-                self._connection_backoff = 1.0
-                
-                return True
-                
-            except Exception as e:
-                self.logger.error(f"Failed to connect to Redis: {e}")
+        try:
+            if self.config.cluster_mode:
+                self._connect_cluster()
+            else:
+                self._connect_standalone()
 
-                # Exponential backoff
-                if self.config.exponential_backoff:
-                    self._connection_backoff = min(self._connection_backoff * 2, 60.0)
-                
-                self._client = None
-                return False
+            # Test connection
+            self._client.ping()
+
+            connection_duration = time.time() - start_time
+            #TODO: @elena-kolevska record connection metrics
+            self.logger.info(f"Successfully connected to Redis in {connection_duration:.3f}s")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to connect to Redis: {e}")
+
+            self._client = None
+            raise e
     
     def _connect_standalone(self):
         """Connect to standalone Redis instance."""
+        start_time = time.time()
         self._client = redis.Redis(
             host=self.config.host,
             port=self.config.port,
             db=self.config.database,
+            maintenance_events_config = redis.maintenance_events.MaintenanceEventsConfig(enabled=self.config.maintenance_events_enabled),
             **self._pool_kwargs
         )
+        self.metrics.record_client_init_duration(time.time() - start_time, client="standalone-sync")
     
     def _connect_cluster(self):
         """Connect to Redis Cluster."""
@@ -124,101 +120,73 @@ class RedisClient:
             startup_nodes = self.config.cluster_nodes
         else:
             startup_nodes = [{"host": self.config.host, "port": self.config.port}]
-        
+
+        start_time = time.time()
         self._client = RedisCluster(
             startup_nodes=startup_nodes,
             decode_responses=False,
             skip_full_coverage_check=True,
             **self._pool_kwargs
         )
+        self.metrics.record_client_init_duration(time.time() - start_time, client="cluster-sync")
 
-    def _ensure_connection(self) -> bool:
-        """Ensure we have a valid connection, reconnecting if necessary."""
-        if self._client is None:
-            return self._reconnect()
-
-        try:
-            # Quick health check
-            self._client.ping()
-            return True
-        except (ConnectionError, TimeoutError, ClusterDownError) as e:
-            self.logger.warning(f"Connection lost ({type(e).__name__}), attempting to reconnect...")
-            return self._reconnect()
-        except Exception as e:
-            self.logger.error(f"Unexpected error during connection check: {e}")
-            return self._reconnect()
-
-    def _reconnect(self) -> bool:
-        """Reconnect to Redis with retry logic."""
-        current_time = time.time()
-        
-        # Rate limit reconnection attempts
-        if current_time - self._last_connection_attempt < self._connection_backoff:
-            return False
-        
-        self._last_connection_attempt = current_time
-        
-        self.logger.info("Attempting to reconnect to Redis...")
-
-        for attempt in range(self.config.retry_attempts):
-            if self._connect():
-                self.logger.info(f"Reconnected successfully after {attempt + 1} attempts")
-                return True
-            
-            if attempt < self.config.retry_attempts - 1:
-                delay = self.config.retry_delay * (2 ** attempt) if self.config.exponential_backoff else self.config.retry_delay
-                self.logger.info(f"Reconnection attempt {attempt + 1} failed, retrying in {delay:.2f}s...")
-                time.sleep(delay)
-        
-        self.logger.error(f"Failed to reconnect after {self.config.retry_attempts} attempts")
-        return False
-    
-
-    
     def pipeline(self, transaction: bool = True):
         """Create a pipeline for batch operations."""
         return self._client.pipeline(transaction=transaction)
     
     def pubsub(self, **kwargs):
-        """Create a pub/sub object."""
-        if not self._ensure_connection():
-            raise ConnectionError("No Redis connection available")
-        
         return self._client.pubsub(**kwargs)
     
     def close(self):
         """Close the Redis connection."""
-        with self._connection_lock:
-            if self._client:
-                try:
-                    if hasattr(self._client, 'close'):
-                        self._client.close()
-                    elif hasattr(self._client, 'connection_pool'):
-                        self._client.connection_pool.disconnect()
-                except Exception as e:
-                    self.logger.warning(f"Error closing Redis connection: {e}")
-                finally:
-                    self._client = None
+        if self._client:
+            try:
+                if hasattr(self._client, 'close'):
+                    self._client.close()
+                elif hasattr(self._client, 'connection_pool'):
+                    self._client.connection_pool.disconnect()
+            except Exception as e:
+                self.logger.warning(f"Error closing Redis connection: {e}")
+            finally:
+                self._client = None
 
     def get_info(self) -> Dict[str, Any]:
         """Get Redis server information."""
         return self._client.info()
-    
-    def is_connected(self) -> bool:
-        """Check if client is connected to Redis."""
-        return self._client is not None and self._ensure_connection()
 
     def _execute_with_metrics(self, operation_name: str, client_method, *args, **kwargs):
-        """Helper method to execute Redis operations with metrics tracking."""
+        """
+        Helper method to execute Redis operations with metrics tracking.
+
+        This method tracks client-level errors immediately when they occur.
+        The redis-py client with Retry object handles connection issues automatically.
+        """
         start_time = time.time()
+
         try:
+            # Execute the Redis operation - redis-py client handles connection/retry logic
             result = client_method(*args, **kwargs)
-            duration = max(0.0, time.time() - start_time)  # Ensure non-negative duration
+            duration = max(0.0, time.time() - start_time)
             self.metrics.record_operation(operation_name, duration, True)
             return result
+
+        except (ConnectionError, TimeoutError, ClusterDownError) as e:
+            # Track client-level network/connection errors immediately
+            duration = max(0.0, time.time() - start_time)
+            error_type = type(e).__name__
+            self.metrics.record_operation(operation_name, duration, False, error_type)
+            # TODO @elena-kolevska add a separate counter for network errors
+
+            self.logger.warning(f"Redis client error for {operation_name}: {error_type} - {e}")
+            raise
+
         except Exception as e:
-            duration = max(0.0, time.time() - start_time)  # Ensure non-negative duration
-            self.metrics.record_operation(operation_name, duration, False, type(e).__name__)
+            # Track other Redis errors (like data type errors, etc.)
+            duration = max(0.0, time.time() - start_time)
+            error_type = type(e).__name__
+            self.metrics.record_operation(operation_name, duration, False, error_type)
+
+            self.logger.error(f"Redis operation error for {operation_name}: {error_type} - {e}")
             raise
 
     # Basic Redis operations with direct client method calls

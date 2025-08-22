@@ -7,10 +7,11 @@ import signal
 from typing import List, Optional, Dict, Any
 
 from config import RunnerConfig
-from redis_client_manager import RedisClientManager
+from redis_client import RedisClient
 from workloads import WorkloadFactory
 from logger import setup_logging
 from metrics import setup_metrics
+from redis.exceptions import ConnectionError, TimeoutError
 
 
 class TestRunner:
@@ -32,9 +33,13 @@ class TestRunner:
         
         # Test control
         self._stop_event = threading.Event()
-        self._client_manager: Optional[RedisClientManager] = None
-        self._workload_threads: List[threading.Thread] = []
+        self._worker_threads: List[threading.Thread] = []
         self._stats_thread: Optional[threading.Thread] = None
+
+        # Thread health tracking
+        self._thread_lock = threading.Lock()
+        self._failed_threads = 0
+        self._started_threads = 0
         
         # Setup signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -45,31 +50,33 @@ class TestRunner:
         self.logger.info(f"Received signal {signum}, initiating graceful shutdown...")
         self.stop()
     
-    def _create_client_manager(self) -> RedisClientManager:
-        """Create Redis client manager."""
+    def _create_redis_client(self) -> RedisClient:
+        """Create a single Redis client instance."""
         try:
-            client_manager = RedisClientManager(
-                self.config.redis,
-                num_clients=self.config.test.redis_clients
-            )
-            self.logger.info(f"Created {len(client_manager)} Redis client instances")
-            return client_manager
+            client = RedisClient(self.config.redis)
+            self.logger.debug("Created Redis client instance")
+            return client
 
         except Exception as e:
-            self.logger.error(f"Failed to create Redis client manager: {e}")
-            raise
+            self.logger.error(f"Failed to create Redis client: {e}")
+            raise e
     
     def _worker_thread(self, thread_id: int):
-        """Worker thread that executes workload operations."""
+        """Worker thread that executes workload operations with its own Redis client."""
         thread_name = f"Worker-{thread_id}"
         self.logger.debug(f"Starting {thread_name}")
 
+        # Mark thread as started
+        with self._thread_lock:
+            self._started_threads += 1
+
+        client = None
         workload = None
 
         try:
-            # Get client from shared client manager
-            client = self._client_manager.get_client()
-            self.logger.debug(f"{thread_name}: Got Redis client")
+            # Create dedicated Redis client for this thread - this will raise exception if connection fails
+            client = self._create_redis_client()
+            self.logger.info(f"{thread_name}: Successfully connected to Redis")
 
             # Create workload
             workload = WorkloadFactory.create_workload(self.config.test.workload, client)
@@ -77,7 +84,7 @@ class TestRunner:
             # Calculate per-thread target ops/sec
             thread_target_ops = None
             if self.config.test.target_ops_per_second:
-                thread_target_ops = self.config.test.target_ops_per_second / self.config.test.worker_threads
+                thread_target_ops = self.config.test.target_ops_per_second / self.config.test.clients
             
             # Run workload
             start_time = time.time()
@@ -107,7 +114,23 @@ class TestRunner:
             self.logger.debug(f"{thread_name}: Completed {operation_count} operations")
             
         except Exception as e:
-            self.logger.error(f"{thread_name}: Fatal error: {e}")
+            # Handle Redis client creation failure
+            self.logger.error(f"{thread_name}: Error: {e}")
+
+            # Track failed thread and check if we should stop the entire test
+            with self._thread_lock:
+                self._failed_threads += 1
+                failed_count = self._failed_threads
+                total_count = self.config.test.clients
+
+            self.logger.error(f"{thread_name}: Stopping this thread due to connection failure ({failed_count}/{total_count} threads failed)")
+
+            # If all threads have failed, stop the entire test
+            if failed_count >= total_count:
+                self.logger.error("All worker threads failed to connect. Stopping test.")
+                self._stop_event.set()
+
+            return
             
         finally:
             # Cleanup
@@ -117,36 +140,37 @@ class TestRunner:
                 except Exception as e:
                     self.logger.warning(f"{thread_name}: Error during workload cleanup: {e}")
 
-            # No need to return client - it's shared across threads!
+            # Close dedicated Redis client
+            if client:
+                try:
+                    client.close()
+                    self.logger.debug(f"{thread_name}: Closed Redis client")
+                except Exception as e:
+                    self.logger.warning(f"{thread_name}: Error closing Redis client: {e}")
+
             self.logger.debug(f"{thread_name}: Thread finished")
     
     def _stats_reporter(self):
         """Background thread for periodic stats reporting."""
-        last_report_time = time.time()
-        
         while not self._stop_event.is_set():
             try:
                 time.sleep(self.config.metrics_interval)
 
                 if not self.config.quiet:
                     current_time = time.time()
-                    interval = current_time - last_report_time
-                    
+
                     stats = self.metrics.get_overall_stats()
-                    
-                    # Calculate interval metrics
-                    interval_ops = stats.get('total_operations', 0)
-                    interval_ops_per_sec = interval_ops / interval if interval > 0 else 0
-                    
+
+                    success_rate = stats.get('successful_operations',0) / stats.get('total_operations', 0) if stats.get('total_operations', 0) > 0 else 0
                     self.logger.info(
                         f"Stats: {stats.get('total_operations', 0):,} ops, "
-                        f"{stats.get('overall_ops_per_second', 0):.1f} ops/sec avg, "
-                        f"{interval_ops_per_sec:.1f} ops/sec current, "
-                        f"{stats.get('overall_success_rate', 0):.2%} success rate"
+                        f"{stats.get('overall_throughput', 0):.1f} ops/sec avg, "
+                        f"{success_rate:.2%} success rate"
                     )
+
                     
                     last_report_time = current_time
-                    self.metrics.reset_interval_metrics()
+                    # self.metrics.reset_interval_metrics()
                 
             except Exception as e:
                 self.logger.error(f"Error in stats reporter: {e}")
@@ -155,26 +179,22 @@ class TestRunner:
         """Start the load test."""
         self.logger.info("Starting Redis load test...")
         self.logger.info(f"Run ID: {self.config.run_id}")
-        self.logger.info(f"Configuration: {self.config.test.redis_clients} Redis clients, "
-                        f"{self.config.test.worker_threads} worker threads")
+        self.logger.info(f"Configuration: {self.config.test.clients} Redis clients (each with dedicated thread)")
 
         # Log duration configuration
         if self.config.test.duration:
             self.logger.info(f"Test duration: {self.config.test.duration} seconds")
         else:
             self.logger.info("Test duration: unlimited (until interrupted)")
-        
+
         try:
-            # Create client manager
-            self._client_manager = self._create_client_manager()
-            
             # Start stats reporter
             if not self.config.quiet:
                 self._stats_thread = threading.Thread(target=self._stats_reporter, daemon=True)
                 self._stats_thread.start()
 
-            # Start worker threads
-            for thread_id in range(self.config.test.worker_threads):
+            # Start worker threads (each creates its own Redis client)
+            for thread_id in range(self.config.test.clients):
                 thread = threading.Thread(
                     target=self._worker_thread,
                     args=(thread_id,),
@@ -182,9 +202,19 @@ class TestRunner:
                 )
                 thread.daemon = True
                 thread.start()
-                self._workload_threads.append(thread)
+                self._worker_threads.append(thread)
             
-            self.logger.info(f"Started {len(self._workload_threads)} worker threads sharing {len(self._client_manager)} Redis clients")
+            self.logger.info(f"Started {len(self._worker_threads)} worker threads (each with dedicated Redis client)")
+
+            # Give threads a moment to initialize and report their connection status
+            time.sleep(1.0)
+
+            with self._thread_lock:
+                successful_threads = self._started_threads - self._failed_threads
+                if self._failed_threads > 0:
+                    self.logger.warning(f"Thread health: {successful_threads}/{self._started_threads} threads connected successfully")
+                else:
+                    self.logger.info(f"Thread health: All {successful_threads} threads connected successfully")
 
             # Wait for completion or interruption
             if self.config.test.duration:
@@ -224,21 +254,14 @@ class TestRunner:
         self.logger.info("Stopping load test...")
         self._stop_event.set()
         
-        # Wait for worker threads to complete
-        for thread in self._workload_threads:
+        # Wait for worker threads to complete (they will close their own Redis clients)
+        for thread in self._worker_threads:
             try:
                 thread.join(timeout=5.0)
                 if thread.is_alive():
                     self.logger.warning(f"Thread {thread.name} did not stop gracefully")
             except Exception as e:
                 self.logger.warning(f"Error joining thread {thread.name}: {e}")
-        
-        # Close client manager
-        if self._client_manager:
-            try:
-                self._client_manager.close_all()
-            except Exception as e:
-                self.logger.warning(f"Error closing client manager: {e}")
         
         # Output final test summary
         self._output_final_summary()
@@ -258,13 +281,3 @@ class TestRunner:
 
         except Exception as e:
             self.logger.error(f"Failed to output final summary: {e}")
-
-    def get_current_stats(self) -> Dict[str, Any]:
-        """Get current test statistics."""
-        stats = self.metrics.get_overall_stats()
-
-        # Add client manager stats
-        if self._client_manager:
-            stats['client_manager'] = self._client_manager.get_client_stats()
-
-        return stats

@@ -104,12 +104,11 @@ class RedisConnectionConfig:
     # Connection pool settings
     max_connections: int = 50
     retry_on_timeout: bool = True
-    health_check_interval: int = 30
-    
-    # Retry configuration
-    retry_attempts: int = 3
-    retry_delay: float = 0.1
-    exponential_backoff: bool = True
+
+    # Redis client-level retry configuration (redis-py Retry object)
+    # These retries happen at the Redis client level for network/connection issues
+    client_retry_attempts: int = 3
+    maintenance_events_enabled: bool = True
 
 
 @dataclass
@@ -158,10 +157,8 @@ class WorkloadConfig:
 
 @dataclass
 class TestConfig:
-    """Simplified test configuration with clear terminology."""
     mode: str = "standalone"  # standalone, cluster
-    redis_clients: int = 4  # Number of Redis client instances (each has connection pool)
-    worker_threads: int = 8  # Total number of worker threads (shared across clients)
+    clients: int = 4  # Number of Redis clients (each with its own thread)
 
     # Test duration (None = unlimited, integer = seconds)
     duration: Optional[int] = None  # Duration in seconds, None for unlimited
@@ -326,8 +323,7 @@ def save_config_to_file(config: RunnerConfig, file_path: str):
         'redis': config.redis.__dict__,
         'test': {
             'mode': config.test.mode,
-            'redis_clients': config.test.redis_clients,
-            'worker_threads': config.test.worker_threads,
+            'clients': config.test.clients,
             'duration': config.test.duration,
             'target_ops_per_second': config.test.target_ops_per_second,
             'workload': config.test.workload.__dict__

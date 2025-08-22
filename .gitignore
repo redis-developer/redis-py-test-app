@@ -30,6 +30,7 @@ ENV/
 .env.local
 .env.docker
 .env.production
+config.yaml
 
 # IDE
 .idea/

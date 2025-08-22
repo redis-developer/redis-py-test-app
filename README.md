@@ -259,23 +259,82 @@ make dev-stop
 ### Configuration Options
 
 #### **CLI Parameters:**
+
+**Redis Connection:**
 ```bash
---workload-profile PROFILE    # Workload type (required)
---duration SECONDS           # Test duration (default: unlimited)
---client-instances N         # Number of client pools (default: 1)
---connections-per-client N   # Connections per pool (default: 5)
---threads-per-client N       # Worker threads per pool (default: 2)
---app-name NAME             # Base application name (default: python)
---version VERSION           # Version label (default: dev)
---host HOST                 # Redis host (default: localhost)
---port PORT                 # Redis port (default: 6379)
+--host HOST                      # Redis host (default: localhost)
+--port PORT                      # Redis port (default: 6379)
+--password PASSWORD              # Redis password
+--db DB                          # Redis database number (default: 0)
+--cluster                        # Use Redis Cluster mode
+--cluster-nodes NODES            # Comma-separated cluster nodes (host:port)
+--ssl                            # Use SSL/TLS connection
+--ssl-cert-reqs LEVEL           # SSL certificate requirements (none/optional/required)
+--ssl-ca-certs PATH             # Path to CA certificates file
+--ssl-certfile PATH             # Path to client certificate file
+--ssl-keyfile PATH              # Path to client private key file
+--socket-timeout SECONDS        # Socket timeout (default: 5.0)
+--socket-connect-timeout SECONDS # Socket connect timeout (default: 5.0)
+--max-connections N             # Maximum connections per client (default: 50)
+```
 
-# Value Size Configuration
---value-size BYTES          # Fixed value size in bytes (overrides min/max)
---value-size-min BYTES      # Minimum value size in bytes (default: 100)
---value-size-max BYTES      # Maximum value size in bytes (default: 1000)
+**Test Configuration:**
+```bash
+--duration SECONDS              # Test duration in seconds (unlimited if not specified)
+--target-ops-per-second N       # Target operations per second
+--redis-clients N               # Number of Redis client instances (default: 4)
+--worker-threads N              # Number of worker threads (default: 2)
+```
 
---quiet                     # Minimal output
+**Workload Configuration:**
+```bash
+--workload-profile PROFILE     # Pre-defined workload profile
+--operations OPS               # Comma-separated Redis operations (default: SET,GET)
+--operation-weights JSON       # JSON string of operation weights
+--key-prefix PREFIX            # Prefix for generated keys (default: test_key)
+--key-range N                  # Range of key IDs to use (default: 10000)
+--read-write-ratio RATIO       # Ratio of read operations 0.0-1.0 (default: 0.7)
+--value-size BYTES             # Fixed value size in bytes (overrides min/max)
+--value-size-min BYTES         # Minimum value size in bytes (default: 100)
+--value-size-max BYTES         # Maximum value size in bytes (default: 1000)
+```
+
+**Pipeline & Advanced:**
+```bash
+--use-pipeline                 # Use Redis pipelining
+--pipeline-size N              # Operations per pipeline (default: 10)
+--async-mode                   # Use asynchronous operations
+--transaction-size N           # Operations per transaction (default: 5)
+--pubsub-channels CHANNELS     # Comma-separated pub/sub channels
+```
+
+**Application Identification:**
+```bash
+--app-name NAME                # Application name for filtering (default: python)
+--instance-id ID               # Unique instance identifier (auto-generated)
+--run-id ID                    # Unique run identifier (auto-generated)
+--version VERSION              # Version identifier (defaults to redis-py version)
+```
+
+**Logging & Output:**
+```bash
+--log-level LEVEL              # Logging level (DEBUG/INFO/WARNING/ERROR)
+--log-file PATH                # Log file path
+--output-file PATH             # Output file for JSON test summary
+--quiet                        # Suppress periodic stats output
+```
+
+**OpenTelemetry & Metrics:**
+```bash
+--otel-endpoint URL            # OpenTelemetry OTLP endpoint
+--otel-service-name NAME       # OpenTelemetry service name (default: redis-load-test)
+--otel-export-interval MS      # Export interval in milliseconds (default: 5000)
+```
+
+**Configuration Files:**
+```bash
+--config-file PATH             # Load configuration from YAML/JSON file
+--save-config PATH             # Save current configuration to file
 ```
 
 #### **App Naming Convention:**
@@ -608,6 +667,52 @@ The application is designed for cloud deployment with:
 - [ ] Helm chart implementation
 - [ ] Production environment configuration
 - [ ] Scaling and resource management
+
+## 🧪 Testing
+
+The application includes a comprehensive test suite for all workload implementations.
+
+### Running Tests
+
+**Quick test run:**
+```bash
+# Run all tests with default settings
+python test_workloads.py
+
+# Or use the test runner for better output
+python run_tests.py
+```
+
+**Advanced test options:**
+```bash
+# Verbose output
+python run_tests.py --verbose
+
+# Quiet output
+python run_tests.py --quiet
+
+# Run specific test pattern
+python run_tests.py --pattern "test_basic*"
+```
+
+### Test Coverage
+
+The test suite covers:
+
+- **BaseWorkload functionality** - Key/value generation, operation selection, threading safety
+- **BasicWorkload operations** - SET, GET, DEL, INCR operations with error handling
+- **ListWorkload operations** - LPUSH, RPUSH, LRANGE, LPOP, RPOP operations
+- **PipelineWorkload** - Batch operations with individual metrics tracking
+- **TransactionWorkload** - MULTI/EXEC transactions with proper cleanup
+- **PubSubWorkload** - Publish/Subscribe with threading and message handling
+- **WorkloadFactory** - Workload creation logic and type detection
+- **Integration tests** - Real configuration profiles and concurrent execution
+- **Edge cases** - Error conditions, empty configurations, invalid inputs
+
+### Test Files
+
+- `test_workloads.py` - Main test suite (50+ test cases)
+- `run_tests.py` - Enhanced test runner with formatting and reporting
 
 ## Core Files
 
