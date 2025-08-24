@@ -83,6 +83,7 @@ class RedisConnectionConfig:
     use_tls: bool = False  # Changed from 'ssl' to match lettuce
     verify_peer: bool = False
     timeout: Optional[float] = None  # Connection timeout in seconds
+    protocol: int = 3  # 2 for RESP2, 3 for RESP3
     
     # Cluster configuration
     cluster_mode: bool = False

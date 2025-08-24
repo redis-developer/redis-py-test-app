@@ -59,7 +59,8 @@ def cli():
 @click.option('--socket-connect-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_CONNECT_TIMEOUT', 5.0, float), help='Socket connect timeout in seconds')
 @click.option('--max-connections', type=int, default=lambda: get_env_or_default('REDIS_MAX_CONNECTIONS', 50, int), help='Maximum connections per client')
 @click.option('--client-retry-attempts', type=int, default=lambda: get_env_or_default('REDIS_CLIENT_RETRY_ATTEMPTS', 3, int), help='Number of client-level retry attempts for network/connection issues (uses redis-py Retry class)')
-@click.option('--maintenance-events-enabled', is_flag=True, default=lambda: get_env_or_default('REDIS_MAINT_EVENTS_ENABLED', True, bool), help='Server maintenance events (hitless upgrades push notifications)')
+@click.option('--maintenance-events-enabled', default=lambda: get_env_or_default('REDIS_MAINT_EVENTS_ENABLED', True, bool), help='Server maintenance events (hitless upgrades push notifications)')
+@click.option('--protocol',type=int, default=lambda: get_env_or_default('REDIS_PROTOCOL', True, 3, int), help='RESP Version (2 or 3)')
 
 # ============================================================================
 # Test Configuration Parameters

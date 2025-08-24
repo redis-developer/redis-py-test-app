@@ -110,6 +110,7 @@ class RedisClient:
             port=self.config.port,
             db=self.config.database,
             maintenance_events_config = redis.maintenance_events.MaintenanceEventsConfig(enabled=self.config.maintenance_events_enabled),
+            protocol=self.config.protocol,
             **self._pool_kwargs
         )
         self.metrics.record_client_init_duration(time.time() - start_time, client="standalone-sync")
