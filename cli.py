@@ -59,15 +59,15 @@ def cli():
 @click.option('--socket-connect-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_CONNECT_TIMEOUT', 5.0, float), help='Socket connect timeout in seconds')
 @click.option('--max-connections', type=int, default=lambda: get_env_or_default('REDIS_MAX_CONNECTIONS', 50, int), help='Maximum connections per client')
 @click.option('--client-retry-attempts', type=int, default=lambda: get_env_or_default('REDIS_CLIENT_RETRY_ATTEMPTS', 3, int), help='Number of client-level retry attempts for network/connection issues (uses redis-py Retry class)')
-@click.option('--maintenance-events-enabled', default=lambda: get_env_or_default('REDIS_MAINT_EVENTS_ENABLED', True, bool), help='Server maintenance events (hitless upgrades push notifications)')
-@click.option('--protocol',type=int, default=lambda: get_env_or_default('REDIS_PROTOCOL', True, 3, int), help='RESP Version (2 or 3)')
+@click.option('--maintenance-events-enabled', type=bool, default=lambda: get_env_or_default('REDIS_MAINT_EVENTS_ENABLED', True, bool), help='Server maintenance events (hitless upgrades push notifications)')
+@click.option('--protocol',type=int, default=lambda: get_env_or_default('REDIS_PROTOCOL', 3, int), help='RESP Version (2 or 3)')
 
 # ============================================================================
 # Test Configuration Parameters
 # ============================================================================
 @click.option('--duration', type=int, default=lambda: get_env_or_default('TEST_DURATION', None, int), help='Test duration in seconds (unlimited if not specified)')
 @click.option('--target-ops-per-second', type=int, default=lambda: get_env_or_default('TEST_TARGET_OPS_PER_SECOND', None, int), help='Target operations per second')
-@click.option('--clients', type=int, default=lambda: get_env_or_default('TEST_CLIENTS', 4, int), help='Number of Redis clients (each with its own thread)')
+@click.option('--clients', type=int, default=lambda: get_env_or_default('TEST_CLIENT_INSTANCES', 4, int), help='Number of Redis clients (each with its own thread)')
 
 # ============================================================================
 # Workload Configuration Parameters
@@ -132,7 +132,8 @@ def run(**kwargs):
         else:
             # Build configuration from command line arguments
             config = _build_config_from_args(kwargs)
-        
+            print("=====", config.redis.maintenance_events_enabled)
+
         # Save configuration if requested
         if kwargs['save_config']:
             from config import save_config_to_file

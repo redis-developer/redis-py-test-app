@@ -105,14 +105,24 @@ class RedisClient:
     def _connect_standalone(self):
         """Connect to standalone Redis instance."""
         start_time = time.time()
-        self._client = redis.Redis(
-            host=self.config.host,
-            port=self.config.port,
-            db=self.config.database,
-            maintenance_events_config = redis.maintenance_events.MaintenanceEventsConfig(enabled=self.config.maintenance_events_enabled),
-            protocol=self.config.protocol,
-            **self._pool_kwargs
-        )
+        if self.config.maintenance_events_enabled:
+            print("-------Maintenance events enabled")
+            self._client = redis.Redis(
+                host=self.config.host,
+                port=self.config.port,
+                db=self.config.database,
+                maintenance_events_config = redis.maintenance_events.MaintenanceEventsConfig(enabled=self.config.maintenance_events_enabled),
+                protocol=self.config.protocol,
+                **self._pool_kwargs
+            )
+        else:
+            self._client = redis.Redis(
+                host=self.config.host,
+                port=self.config.port,
+                db=self.config.database,
+                protocol=self.config.protocol,
+                **self._pool_kwargs
+            )
         self.metrics.record_client_init_duration(time.time() - start_time, client="standalone-sync")
     
     def _connect_cluster(self):
