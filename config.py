@@ -159,7 +159,8 @@ class WorkloadConfig:
 @dataclass
 class TestConfig:
     mode: str = "standalone"  # standalone, cluster
-    clients: int = 4  # Number of Redis clients (each with its own thread)
+    clients: int = 4  # Number of Redis clients
+    threads_per_client: int = 10  # Number of worker threads per Redis client
 
     # Test duration (None = unlimited, integer = seconds)
     duration: Optional[int] = None  # Duration in seconds, None for unlimited
@@ -325,6 +326,7 @@ def save_config_to_file(config: RunnerConfig, file_path: str):
         'test': {
             'mode': config.test.mode,
             'clients': config.test.clients,
+            'threads_per_client': config.test.threads_per_client,
             'duration': config.test.duration,
             'target_ops_per_second': config.test.target_ops_per_second,
             'workload': config.test.workload.__dict__

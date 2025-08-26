@@ -187,9 +187,9 @@ python main.py run --workload-profile async_mixed
 python main.py run \
   --workload-profile basic_rw \
   --duration 300 \
-  --client-instances 2 \
-  --connections-per-client 10 \
+  --clients 2 \
   --threads-per-client 3 \
+  --max-connections 10 \
   --app-name python-dev \
   --version test-v1
 ```
@@ -199,6 +199,7 @@ python main.py run \
 # Set via environment variables
 export TEST_DURATION=180
 export TEST_CLIENT_INSTANCES=3
+export TEST_THREADS_PER_CLIENT=2
 export APP_NAME=python-custom
 python main.py run --workload-profile high_throughput
 ```
@@ -282,8 +283,8 @@ make dev-stop
 ```bash
 --duration SECONDS              # Test duration in seconds (unlimited if not specified)
 --target-ops-per-second N       # Target operations per second
---redis-clients N               # Number of Redis client instances (default: 4)
---worker-threads N              # Number of worker threads (default: 2)
+--clients N                     # Number of Redis client instances (default: 4)
+--threads-per-client N          # Number of worker threads per client (default: 1)
 ```
 
 **Workload Configuration:**

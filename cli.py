@@ -67,7 +67,8 @@ def cli():
 # ============================================================================
 @click.option('--duration', type=int, default=lambda: get_env_or_default('TEST_DURATION', None, int), help='Test duration in seconds (unlimited if not specified)')
 @click.option('--target-ops-per-second', type=int, default=lambda: get_env_or_default('TEST_TARGET_OPS_PER_SECOND', None, int), help='Target operations per second')
-@click.option('--clients', type=int, default=lambda: get_env_or_default('TEST_CLIENT_INSTANCES', 4, int), help='Number of Redis clients (each with its own thread)')
+@click.option('--clients', type=int, default=lambda: get_env_or_default('TEST_CLIENT_INSTANCES', 4, int), help='Number of Redis clients')
+@click.option('--threads-per-client', type=int, default=lambda: get_env_or_default('TEST_THREADS_PER_CLIENT', 10, int), help='Number of worker threads per Redis client')
 
 # ============================================================================
 # Workload Configuration Parameters
@@ -338,6 +339,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
     test_config = TestConfig(
         mode="cluster" if kwargs.get('cluster', False) else "standalone",
         clients=kwargs['clients'],
+        threads_per_client=kwargs['threads_per_client'],
         duration=kwargs['duration'],
         target_ops_per_second=kwargs['target_ops_per_second'],
         workload=workload_config
@@ -378,6 +380,9 @@ def _validate_config(config: RunnerConfig):
     """Validate configuration parameters."""
     if config.test.clients <= 0:
         raise ValueError("Number of clients must be greater than 0")
+
+    if config.test.threads_per_client <= 0:
+        raise ValueError("Number of threads per client must be greater than 0")
 
     if not config.test.workload.type:
         raise ValueError("Workload type must be specified")
