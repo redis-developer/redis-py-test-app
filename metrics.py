@@ -5,22 +5,17 @@ import time
 import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Deque, Any
+from typing import Dict, Deque
 import statistics
 import json
-import os
 import uuid
 
-# OpenTelemetry imports only
-
-# OpenTelemetry imports
 from opentelemetry import metrics as otel_metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-# Note: RedisInstrumentor import removed to prevent automatic instrumentation
 
 from logger import get_logger
 
@@ -355,13 +350,17 @@ class MetricsCollector:
         with open(file_path, 'w') as f:
             json.dump(summary_dict, f, indent=2)
 
-    def print_summary(self):
+    def print_summary(self, clients=None, threads_per_client=None):
         """Print final test summary in standardized format."""
         summary = self.get_final_test_summary()
 
         print("\n" + "="*60)
         print("FINAL TEST SUMMARY")
         print("="*60)
+        if clients is not None:
+            print(f"Clients: {clients}")
+        if threads_per_client is not None:
+            print(f"Threads per Client: {threads_per_client}")
         print(f"Workload Name: {summary.workload_name}")
         print(f"Total test run time: {summary.run_end - summary.run_start:.2f}s")
         print(f"Total Commands: {summary.total_commands_count:,}")

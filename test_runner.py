@@ -292,8 +292,11 @@ class TestRunner:
                 self.metrics.export_final_summary_to_json(self.config.output_file)
                 self.logger.info(f"Final test summary exported to {self.config.output_file}")
             elif not self.config.quiet:
-                # Print final summary to stdout (unless quiet mode)
-                self.metrics.print_summary()
+                # Print final summary to stdout (unless quiet mode) with config info
+                self.metrics.print_summary(
+                    clients=self.config.test.clients,
+                    threads_per_client=self.config.test.threads_per_client
+                )
 
         except Exception as e:
             self.logger.error(f"Failed to output final summary: {e}")

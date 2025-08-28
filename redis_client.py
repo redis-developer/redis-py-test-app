@@ -106,7 +106,6 @@ class RedisClient:
         """Connect to standalone Redis instance."""
         start_time = time.time()
         if self.config.maintenance_events_enabled:
-            print("-------Maintenance events enabled")
             self._client = redis.Redis(
                 host=self.config.host,
                 port=self.config.port,

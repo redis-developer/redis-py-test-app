@@ -133,7 +133,6 @@ def run(**kwargs):
         else:
             # Build configuration from command line arguments
             config = _build_config_from_args(kwargs)
-            print("=====", config.redis.maintenance_events_enabled)
 
         # Save configuration if requested
         if kwargs['save_config']:
