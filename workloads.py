@@ -44,14 +44,13 @@ class BaseWorkload(ABC):
 
     def _generate_value(self) -> str:
         """Generate a random value with configured size."""
-        value_size = self.config.get_option("valueSize", 100)
-        # For backward compatibility, check for min/max size options
-        value_size_min = self.config.get_option("valueSizeMin", value_size)
-        value_size_max = self.config.get_option("valueSizeMax", value_size)
+        value_size = self.config.get_option("valueSize")
 
-        if value_size_min == value_size_max:
+        if value_size is not None:
             size = value_size
         else:
+            value_size_min = self.config.get_option("valueSizeMin", 100)
+            value_size_max = self.config.get_option("valueSizeMax", 1000)
             size = random.randint(value_size_min, value_size_max)
 
         return ''.join(random.choices(string.ascii_letters + string.digits, k=size))

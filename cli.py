@@ -296,43 +296,59 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         maintenance_events_enabled=kwargs['maintenance_events_enabled']
     )
 
+
     # Build workload config
+    workload_config = WorkloadConfig(
+        type="custom",
+        options={}
+    )
+
+    # If a profile is specified, use it. If any additional options have been specified, they will override the defaults
     if kwargs['workload_profile']:
         workload_config = WorkloadProfiles.get_profile(kwargs['workload_profile'])
+
+
+    operations = [op.strip() for op in kwargs['operations'].split(',')]
+
+    # Build options dictionary
+    workload_config.options["operations"] = operations or workload_config.get_option("operations")
+    workload_config.options["keyPrefix"] = kwargs['key_prefix'] or workload_config.get_option("keyPrefix")
+
+    if kwargs['key_range'] is not None:
+        workload_config.options["keyRange"] = kwargs['key_range']
+
+    if kwargs['read_write_ratio'] is not None:
+        workload_config.options["readWriteRatio"] = kwargs['read_write_ratio']
+
+    if kwargs['use_pipeline'] is not None:
+        workload_config.options["usePipeline"] = kwargs['use_pipeline']
+
+    if kwargs['async_mode'] is not None:
+        workload_config.options["asyncMode"] = kwargs['async_mode']
+
+    if kwargs['pipeline_size'] is not None:
+        workload_config.options["pipelineSize"] = kwargs['pipeline_size']
+
+    if kwargs['transaction_size'] is not None:
+        workload_config.options["transactionSize"] = kwargs['transaction_size']
+
+    # Handle value size - if fixed size is provided, use it; otherwise use min/max
+    if kwargs['value_size'] is not None:
+        workload_config.options["valueSize"] = kwargs['value_size']
     else:
-        operations = [op.strip() for op in kwargs['operations'].split(',')]
+        # Set min/max values only if they are not None (allowing 0 as valid)
+        if kwargs['value_size_min'] is not None:
+            workload_config.options["valueSizeMin"] = kwargs['value_size_min']
+        if kwargs['value_size_max'] is not None:
+            workload_config.options["valueSizeMax"] = kwargs['value_size_max']
 
-        # Build options dictionary
-        options = {
-            "operations": operations,
-            "keyPrefix": kwargs['key_prefix'],
-            "keyRange": kwargs['key_range'],
-            "readWriteRatio": kwargs['read_write_ratio'],
-            "usePipeline": kwargs['use_pipeline'],
-            "pipelineSize": kwargs['pipeline_size'],
-            "asyncMode": kwargs['async_mode'],
-            "transactionSize": kwargs['transaction_size']
-        }
+    # Add operation weights if provided
+    if operation_weights:
+        workload_config.options["operation_weights"] = operation_weights
 
-        # Handle value size - if fixed size is provided, use it; otherwise use min/max
-        if kwargs['value_size'] is not None:
-            options["valueSize"] = kwargs['value_size']
-        else:
-            options["valueSizeMin"] = kwargs['value_size_min']
-            options["valueSizeMax"] = kwargs['value_size_max']
-
-        # Add operation weights if provided
-        if operation_weights:
-            options["operation_weights"] = operation_weights
-
-        # Add pubsub channels if provided
-        if pubsub_channels:
-            options["channels"] = pubsub_channels
-
-        workload_config = WorkloadConfig(
-            type="custom",
-            options=options
-        )
+    # Add pubsub channels if provided
+    if pubsub_channels:
+        workload_config.options["channels"] = pubsub_channels
 
     # Build test config
     test_config = TestConfig(
