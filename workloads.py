@@ -119,13 +119,19 @@ class BaseWorkload(ABC):
         """Get default operation based on workload type."""
         workload_type = self.config.type
         if workload_type == "high_throughput":
-            return random.choice(["SET", "GET", "INCR", "DEL", "LPUSH", "LRANGE", "LTRIM"])
+            return random.choice([
+                "SET", "GET", "INCR", "DECR", "DEL", "EXISTS", "EXPIRE", "TTL",
+                "LPUSH", "RPUSH", "LRANGE", "LPOP", "RPOP", "LLEN", "LTRIM",
+                "SADD", "SREM", "SMEMBERS", "SCARD",
+                "HSET", "HGET", "HDEL", "HGETALL", "HLEN",
+                "ZADD", "ZREM", "ZRANGE", "ZCARD", "ZSCORE"
+            ])
         elif workload_type == "list_operations":
-            return random.choice(["LPUSH", "LRANGE", "LPOP"])
+            return random.choice(["LPUSH", "RPUSH", "LRANGE", "LPOP", "RPOP", "LLEN", "LTRIM"])
         elif workload_type == "pubsub_heavy":
             return random.choice(["PUBLISH", "SUBSCRIBE"])
         else:
-            return random.choice(["SET", "GET"])
+            return random.choice(["SET", "GET", "INCR", "DECR", "DEL", "EXISTS"])
     
     @abstractmethod
     def execute_operation(self) -> int:
@@ -227,34 +233,159 @@ class PipelineWorkload(BaseWorkload):
                 operation = self._choose_operation()
 
                 if operation == "SET":
-                    key = self._generate_key(operation)
+                    key = self._generate_key("STRING:")
                     value = self._generate_value()
                     pipe.set(key, value)
 
                 elif operation == "GET":
-                    key = self._generate_key(operation)
+                    key = self._generate_key("STRING:")
                     pipe.get(key)
 
-                elif operation == "INCR":
-                    key = self._generate_key(operation)
-                    pipe.incr(key)
-
                 elif operation == "DEL":
-                    key = self._generate_key(operation)
+                    key = self._generate_key("STRING:")
                     pipe.delete(key)
 
+                elif operation == "EXPIRE":
+                    key = self._generate_key("STRING:")
+                    ttl = random.randint(60, 3600)  # 1 minute to 1 hour
+                    pipe.expire(key, ttl)
+
+                elif operation == "TTL":
+                    key = self._generate_key("STRING:")
+                    pipe.ttl(key)
+
+                elif operation == "EXISTS":
+                    key = self._generate_key("STRING:")
+                    pipe.exists(key)
+
+                elif operation == "TYPE":
+                    key = self._generate_key("STRING:")
+                    pipe.type(key)
+
+                elif operation == "APPEND":
+                    key = self._generate_key("STRING:")
+                    value = self._generate_value()
+                    pipe.append(key, value)
+
+                elif operation == "STRLEN":
+                    key = self._generate_key("STRING:")
+                    pipe.strlen(key)
+
+                elif operation == "INCR":
+                    key = self._generate_key("NUMSTRING:")
+                    pipe.incr(key)
+
+                elif operation == "INCRBY":
+                    key = self._generate_key("NUMSTRING:")
+                    amount = random.randint(1, 10)
+                    pipe.incrby(key, amount)
+
+                elif operation == "DECR":
+                    key = self._generate_key("NUMSTRING:")
+                    pipe.decr(key)
+
+                elif operation == "DECRBY":
+                    key = self._generate_key("NUMSTRING:")
+                    amount = random.randint(1, 10)
+                    pipe.decrby(key, amount)
+
                 elif operation == "LPUSH":
-                    key = self._generate_key(operation)
+                    key = self._generate_key("LIST:")
                     value = self._generate_value()
                     pipe.lpush(key, value)
 
                 elif operation == "LRANGE":
-                    key = self._generate_key(operation)
+                    key = self._generate_key("LIST:")
                     pipe.lrange(key, 0, 10)
 
                 elif operation == "LTRIM":
-                    key = self._generate_key(operation)
+                    key = self._generate_key("LIST:")
                     pipe.ltrim(key, 0, 10)
+
+                elif operation == "RPUSH":
+                    key = self._generate_key("LIST:")
+                    value = self._generate_value()
+                    pipe.rpush(key, value)
+
+                elif operation == "RPOP":
+                    key = self._generate_key("LIST:")
+                    pipe.rpop(key)
+
+                elif operation == "LPOP":
+                    key = self._generate_key("LIST:")
+                    pipe.lpop(key)
+
+                elif operation == "LLEN":
+                    key = self._generate_key("LIST:")
+                    pipe.llen(key)
+
+                elif operation == "SADD":
+                    key = self._generate_key("SET:")
+                    value = self._generate_value()
+                    pipe.sadd(key, value)
+
+                elif operation == "SREM":
+                    key = self._generate_key("SET:")
+                    value = self._generate_value()
+                    pipe.srem(key, value)
+
+                elif operation == "SMEMBERS":
+                    key = self._generate_key("SET:")
+                    pipe.smembers(key)
+
+                elif operation == "SCARD":
+                    key = self._generate_key("SET:")
+                    pipe.scard(key)
+
+                elif operation == "HSET":
+                    key = self._generate_key("HASH:")
+                    field = f"field_{random.randint(1, 100)}"
+                    value = self._generate_value()
+                    pipe.hset(key, field, value)
+
+                elif operation == "HGET":
+                    key = self._generate_key("HASH:")
+                    field = f"field_{random.randint(1, 100)}"
+                    pipe.hget(key, field)
+
+                elif operation == "HDEL":
+                    key = self._generate_key("HASH:")
+                    field = f"field_{random.randint(1, 100)}"
+                    pipe.hdel(key, field)
+
+                elif operation == "HGETALL":
+                    key = self._generate_key("HASH:")
+                    pipe.hgetall(key)
+
+                elif operation == "HLEN":
+                    key = self._generate_key("HASH:")
+                    pipe.hlen(key)
+
+                elif operation == "ZADD":
+                    key = self._generate_key("ZSET:")
+                    score = random.uniform(0, 100)
+                    member = self._generate_value()
+                    pipe.zadd(key, {member: score})
+
+                elif operation == "ZREM":
+                    key = self._generate_key("ZSET:")
+                    member = self._generate_value()
+                    pipe.zrem(key, member)
+
+                elif operation == "ZRANGE":
+                    key = self._generate_key("ZSET:")
+                    start = random.randint(0, 10)
+                    end = start + random.randint(1, 20)
+                    pipe.zrange(key, start, end)
+
+                elif operation == "ZCARD":
+                    key = self._generate_key("ZSET:")
+                    pipe.zcard(key)
+
+                elif operation == "ZSCORE":
+                    key = self._generate_key("ZSET:")
+                    member = self._generate_value()
+                    pipe.zscore(key, member)
 
                 operations.append(operation)
 
