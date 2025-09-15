@@ -163,7 +163,6 @@ class MetricsCollector:
             raise
     
 
-    
     def record_operation(self, operation: str, duration: float, success: bool, error_type: str = None):
         """Record metrics for a Redis operation."""
         with self._lock:

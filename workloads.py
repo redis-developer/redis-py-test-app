@@ -240,20 +240,26 @@ class PipelineWorkload(BaseWorkload):
 
             # Execute pipeline
             operations_count = len(operations)
-            if operations_count > 0:
-                start_time = time.time()
-                pipe.execute()
-                duration = time.time() - start_time
-
-                # Record individual operation metrics
-                avg_duration = duration / operations_count if operations_count > 0 else 0
-                for operation in operations:
-                    self.metrics.record_operation(operation, avg_duration, True)
-
-                return operations_count  # Return number of operations executed
-            else:
-                self.logger.warning(f"No operations added to pipeline. Available operations: {self.config.get_option('operations', [])}")
+            if operations_count == 0:
+                self.logger.warning(
+                    f"No operations added to pipeline. Available operations: {self.config.get_option('operations', [])}")
                 return 0
+
+            start_time = time.time()
+            try:
+                pipe.execute()
+            except Exception as e:
+                avg_duration = time.time() - start_time / operations_count if operations_count > 0 else 0
+                for operation in operations:
+                    self.metrics.record_operation(operation, avg_duration, False, error_type=type(e).__name__)
+                raise
+
+            avg_duration = time.time() - start_time / operations_count if operations_count > 0 else 0
+            for operation in operations:
+                self.metrics.record_operation(operation, avg_duration, True)
+
+            return operations_count  # Return number of operations executed
+
 
         except Exception as e:
             self.logger.error(f"Failed to execute pipeline: {e}")
