@@ -74,7 +74,7 @@ def cli():
 # Workload Configuration Parameters
 # ============================================================================
 @click.option('--workload-profile', type=click.Choice(WorkloadProfiles.list_profiles()), default=lambda: get_env_or_default('TEST_WORKLOAD_PROFILE', None), help='Pre-defined workload profile')
-@click.option('--operations', default=lambda: get_env_or_default('TEST_OPERATIONS', 'SET,GET'), help='Comma-separated list of Redis operations')
+@click.option('--operations', default=lambda: get_env_or_default('TEST_OPERATIONS', None), help='Comma-separated list of Redis operations')
 @click.option('--operation-weights', default=lambda: get_env_or_default('TEST_OPERATION_WEIGHTS', None), help='JSON string of operation weights (e.g., {"SET": 0.4, "GET": 0.6})')
 @click.option('--key-prefix', default=lambda: get_env_or_default('TEST_KEY_PREFIX', 'test_key'), help='Prefix for generated keys')
 @click.option('--key-range', type=int, default=lambda: get_env_or_default('TEST_KEY_RANGE', 10000, int), help='Range of key IDs to use')
@@ -308,10 +308,14 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         workload_config = WorkloadProfiles.get_profile(kwargs['workload_profile'])
 
 
-    operations = [op.strip() for op in kwargs['operations'].split(',')]
+    if kwargs['operations']:
+        operations = [op.strip() for op in kwargs['operations'].split(',')]
+        workload_config.options["operations"] = operations
+    else:
+        workload_config.options["operations"] = workload_config.get_option("operations")
 
     # Build options dictionary
-    workload_config.options["operations"] = operations or workload_config.get_option("operations")
+
     workload_config.options["keyPrefix"] = kwargs['key_prefix'] or workload_config.get_option("keyPrefix")
 
     if kwargs['key_range'] is not None:

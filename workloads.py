@@ -116,7 +116,7 @@ class BaseWorkload(ABC):
         """Get default operation based on workload type."""
         workload_type = self.config.type
         if workload_type == "high_throughput":
-            return random.choice(["SET", "GET", "INCR"])
+            return random.choice(["SET", "GET", "INCR", "DEL", "LPUSH", "LRANGE", "LTRIM"])
         elif workload_type == "list_operations":
             return random.choice(["LPUSH", "LRANGE", "LPOP"])
         elif workload_type == "pubsub_heavy":
@@ -235,6 +235,23 @@ class PipelineWorkload(BaseWorkload):
                 elif operation == "INCR":
                     key = self._generate_key()
                     pipe.incr(key)
+
+                elif operation == "DEL":
+                    key = self._generate_key()
+                    pipe.delete(key)
+
+                elif operation == "LPUSH":
+                    key = self._generate_key()
+                    value = self._generate_value()
+                    pipe.lpush(key, value)
+
+                elif operation == "LRANGE":
+                    key = self._generate_key()
+                    pipe.lrange(key, 0, 10)
+
+                elif operation == "LTRIM":
+                    key = self._generate_key()
+                    pipe.ltrim(key, 0, 10)
 
                 operations.append(operation)
 
