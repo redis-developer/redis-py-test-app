@@ -15,6 +15,36 @@ from redis_client import RedisClient
 from logger import get_logger, log_error_with_traceback
 from metrics import get_metrics_collector
 
+# Pre-compute character set for better performance
+_CHARSET = string.ascii_letters + string.digits
+
+# Global value cache - initialized once, used by all workload instances
+_VALUE_CACHE = []
+
+
+def initialize_value_cache(config: WorkloadConfig) -> None:
+    """Initialize the global value cache with pre-generated random strings."""
+
+    global _VALUE_CACHE
+
+    if _VALUE_CACHE:  # Already initialized
+        return
+
+    value_size = config.get_option("valueSize")
+    cache_size = 1000  # Large cache shared across all threads
+
+    if value_size is not None:
+        # Fixed size - generate values of the same size
+        for _ in range(cache_size):
+            _VALUE_CACHE.append(''.join(random.choices(_CHARSET, k=value_size)))
+    else:
+        # Variable size - generate values with different sizes in the range
+        value_size_min = config.get_option("valueSizeMin", 100)
+        value_size_max = config.get_option("valueSizeMax", 1000)
+
+        for _ in range(cache_size):
+            size = random.randint(value_size_min, value_size_max)
+            _VALUE_CACHE.append(''.join(random.choices(_CHARSET, k=size)))
 
 class BaseWorkload(ABC):
     """Base class for Redis workloads."""
@@ -44,6 +74,18 @@ class BaseWorkload(ABC):
 
     def _generate_value(self) -> str:
         """Generate a random value with configured size."""
+        """Generate a random value from global cache (completely lock-free)."""
+        global _VALUE_CACHE
+
+        # Cache is guaranteed to be initialized by test runner
+        # Add randomness using thread ID + timestamp's last 2 digits
+        thread_id = threading.get_ident()
+        timestamp_suffix = int(time.time() * 100) % 100  # Last 2 digits of timestamp
+        index = (thread_id + timestamp_suffix) % len(_VALUE_CACHE)
+        return _VALUE_CACHE[index]
+
+    def _generate_value_direct(self) -> str:
+        """Direct value generation (fallback when cache is not initialized)."""
         value_size = self.config.get_option("valueSize")
 
         if value_size is not None:
@@ -52,8 +94,6 @@ class BaseWorkload(ABC):
             value_size_min = self.config.get_option("valueSizeMin", 100)
             value_size_max = self.config.get_option("valueSizeMax", 1000)
             size = random.randint(value_size_min, value_size_max)
-
-        return ''.join(random.choices(string.ascii_letters + string.digits, k=size))
 
     def _choose_operation(self) -> str:
         """Choose an operation based on configured weights."""

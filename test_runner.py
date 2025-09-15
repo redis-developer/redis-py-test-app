@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 
 from config import RunnerConfig
 from redis_client import RedisClient
-from workloads import WorkloadFactory
+from workloads import WorkloadFactory, initialize_value_cache
 from logger import setup_logging
 from metrics import setup_metrics
 from redis.exceptions import ConnectionError, TimeoutError
@@ -192,6 +192,12 @@ class TestRunner:
                     for existing_client in self._redis_clients:
                         existing_client.close()
                     raise e
+
+            # Initialize value cache for better performance (before creating threads)
+            self.logger.info("Initializing value cache for optimal performance...")
+            initialize_value_cache(self.config.test.workload)
+            self.logger.info("Value cache initialized successfully")
+
 
             # Start stats reporter
             if not self.config.quiet:
