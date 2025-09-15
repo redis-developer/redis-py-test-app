@@ -59,7 +59,7 @@ class BaseWorkload(ABC):
         self._key_counter = 0
         self._key_lock = threading.Lock()
     
-    def _generate_key(self) -> str:
+    def _generate_key(self, operation: str = None) -> str:
         """Generate a unique key for operations."""
         with self._key_lock:
             key_range = self.config.get_option("keyRange", 10000)
@@ -70,6 +70,9 @@ class BaseWorkload(ABC):
                 self._key_counter += 1
 
             key_prefix = self.config.get_option("keyPrefix", "rw_test")
+            if operation:
+                return f"{key_prefix}:{operation.lower()}:{key_id}"
+
             return f"{key_prefix}:{key_id}"
 
     def _generate_value(self) -> str:
@@ -138,20 +141,20 @@ class BasicWorkload(BaseWorkload):
 
         try:
             if operation == "SET":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 value = self._generate_value()
                 self.client.set(key, value)
 
             elif operation == "GET":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 self.client.get(key)
 
             elif operation == "DEL":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 self.client.delete(key)
 
             elif operation == "INCR":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 self.client.incr(key)
 
             else:
@@ -174,27 +177,27 @@ class ListWorkload(BaseWorkload):
         
         try:
             if operation == "LPUSH":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 value = self._generate_value()
                 self.client.lpush(key, value)
 
             elif operation == "RPUSH":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 value = self._generate_value()
                 self.client.rpush(key, value)
 
             elif operation == "LRANGE":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 start = random.randint(0, 10)
                 end = start + random.randint(1, 20)
                 self.client.lrange(key, start, end)
 
             elif operation == "LPOP":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 self.client.lpop(key)
 
             elif operation == "RPOP":
-                key = self._generate_key()
+                key = self._generate_key(operation)
                 self.client.rpop(key)
                 
             else:
@@ -224,33 +227,33 @@ class PipelineWorkload(BaseWorkload):
                 operation = self._choose_operation()
 
                 if operation == "SET":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     value = self._generate_value()
                     pipe.set(key, value)
 
                 elif operation == "GET":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     pipe.get(key)
 
                 elif operation == "INCR":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     pipe.incr(key)
 
                 elif operation == "DEL":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     pipe.delete(key)
 
                 elif operation == "LPUSH":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     value = self._generate_value()
                     pipe.lpush(key, value)
 
                 elif operation == "LRANGE":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     pipe.lrange(key, 0, 10)
 
                 elif operation == "LTRIM":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     pipe.ltrim(key, 0, 10)
 
                 operations.append(operation)
@@ -299,16 +302,16 @@ class TransactionWorkload(BaseWorkload):
                 operation = self._choose_operation()
 
                 if operation == "SET":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     value = self._generate_value()
                     pipe.set(key, value)
 
                 elif operation == "GET":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     pipe.get(key)
 
                 elif operation == "INCR":
-                    key = self._generate_key()
+                    key = self._generate_key(operation)
                     pipe.incr(key)
 
                 operations.append(operation)
