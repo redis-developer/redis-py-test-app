@@ -180,6 +180,38 @@ python main.py run --workload-profile async_mixed --duration 120
 python main.py run --workload-profile async_mixed
 ```
 
+**Overriding Workload Operations:**
+```bash
+# Override basic_rw profile to use only SET and GET operations
+python main.py run --workload-profile basic_rw --operations SET,GET --duration 60
+
+# Override high_throughput profile with custom operations and weights
+python main.py run --workload-profile high_throughput \
+  --operations SET,GET,INCR,DEL \
+  --operation-weights "{\"SET\": 0.3, \"GET\": 0.4, \"INCR\": 0.2, \"DEL\": 0.1}" \
+  --duration 120
+
+# Override list_operations profile to focus on LPUSH/LPOP only
+python main.py run --workload-profile list_operations \
+  --operations LPUSH,LPOP \
+  --operation-weights "{\"LPUSH\": 0.6, \"LPOP\": 0.4}" \
+  --duration 90
+
+# Create custom workload from scratch (no profile)
+python main.py run \
+  --operations SET,GET,INCR,DECR \
+  --operation-weights '{"SET": 0.25, "GET": 0.25, "INCR": 0.25, "DECR": 0.25}' \
+  --value-size 200 \
+  --key-prefix custom_test \
+  --duration 60
+
+# Override with single operation for focused testing
+python main.py run --workload-profile basic_rw \
+  --operations SET \
+  --value-size 1000 \
+  --duration 30
+```
+
 **Custom Configuration:**
 ```bash
 # Multiple clients with custom threading
@@ -500,14 +532,18 @@ python main.py run --cluster --cluster-nodes "node1:7000,node2:7000,node3:7000"
 
 ## Workload Profiles
 
-Available workload profiles with intuitive names:
+### Available Profiles
 
-- **`basic_rw`**: Basic read/write operations (SET, GET, DEL)
-- **`high_throughput`**: Optimized for maximum throughput with pipelining
-- **`list_operations`**: List-based operations (LPUSH, LRANGE, LPOP)
-- **`pubsub_heavy`**: Publish/Subscribe operations
-- **`transaction_heavy`**: Transaction-based operations (MULTI/EXEC)
-- **`async_mixed`**: Mixed async operations with pipelining
+| Profile | Default Operations | Description |
+|---------|-------------------|-------------|
+| **`basic_rw`** | SET (40%), GET (50%), DEL (10%) | Basic read/write operations for general testing |
+| **`high_throughput`** | SET (40%), GET (60%) | Optimized for maximum throughput with pipelining |
+| **`list_operations`** | LPUSH (40%), LRANGE (40%), LPOP (20%) | List-based operations for queue-like workloads |
+| **`pubsub_heavy`** | PUBLISH (70%), SUBSCRIBE (30%) | Publish/Subscribe operations for messaging patterns |
+| **`transaction_heavy`** | SET, GET | Transaction-based operations using MULTI/EXEC |
+| **`async_mixed`** | SET (30%), GET (40%), LPUSH (20%), LRANGE (10%) | Mixed async operations with pipelining |
+
+### Profile Commands
 
 List all profiles:
 ```bash
@@ -517,6 +553,109 @@ python main.py list-profiles
 Describe a specific profile:
 ```bash
 python main.py describe-profile high_throughput
+```
+
+### Custom Operation Weights
+
+Override default operations and weights using escaped JSON format:
+
+```bash
+# Basic example with equal weights
+python main.py run --workload-profile basic_rw \
+  --operation-weights "{\"SET\": 0.2, \"GET\": 0.2, \"LTRIM\": 0.2, \"LPUSH\": 0.2, \"INCR\": 0.2}"
+
+# High throughput with custom mix
+python main.py run --workload-profile high_throughput \
+  --operations SET,GET,INCR,HSET,ZADD \
+  --operation-weights "{\"SET\": 0.3, \"GET\": 0.4, \"INCR\": 0.1, \"HSET\": 0.1, \"ZADD\": 0.1}"
+
+# List operations with custom weights
+python main.py run --workload-profile list_operations \
+  --operation-weights "{\"LPUSH\": 0.5, \"RPUSH\": 0.2, \"LRANGE\": 0.2, \"LPOP\": 0.1}"
+```
+
+## Available Redis Commands
+
+The application supports a comprehensive set of Redis commands across all major data types:
+
+### String Operations
+| Command | Description | Example Usage |
+|---------|-------------|---------------|
+| `SET` | Set key-value pair | Basic write operation |
+| `GET` | Get value by key | Basic read operation |
+| `INCR` | Increment integer value | Counter operations |
+| `DECR` | Decrement integer value | Counter operations |
+| `INCRBY` | Increment by specific amount | Custom increment |
+| `DECRBY` | Decrement by specific amount | Custom decrement |
+| `APPEND` | Append to string value | String concatenation |
+| `STRLEN` | Get string length | String analysis |
+
+### Key Operations
+| Command | Description | Example Usage |
+|---------|-------------|---------------|
+| `DEL` | Delete keys | Cleanup operations |
+| `EXISTS` | Check if key exists | Conditional logic |
+| `EXPIRE` | Set key expiration | TTL management |
+| `TTL` | Get time to live | Expiration monitoring |
+| `TYPE` | Get key data type | Type checking |
+
+### List Operations
+| Command | Description | Example Usage |
+|---------|-------------|---------------|
+| `LPUSH` | Push to left of list | Queue operations |
+| `RPUSH` | Push to right of list | Stack operations |
+| `LPOP` | Pop from left of list | Queue processing |
+| `RPOP` | Pop from right of list | Stack processing |
+| `LRANGE` | Get range from list | Batch retrieval |
+| `LLEN` | Get list length | Size monitoring |
+| `LTRIM` | Trim list to range | List maintenance |
+
+### Set Operations
+| Command | Description | Example Usage |
+|---------|-------------|---------------|
+| `SADD` | Add members to set | Unique collections |
+| `SREM` | Remove members from set | Set maintenance |
+| `SMEMBERS` | Get all set members | Full set retrieval |
+| `SCARD` | Get set cardinality | Set size monitoring |
+
+### Hash Operations
+| Command | Description | Example Usage |
+|---------|-------------|---------------|
+| `HSET` | Set hash field | Object storage |
+| `HGET` | Get hash field | Field retrieval |
+| `HDEL` | Delete hash fields | Field cleanup |
+| `HGETALL` | Get all hash fields | Object retrieval |
+| `HLEN` | Get hash field count | Object size monitoring |
+
+### Sorted Set Operations
+| Command | Description | Example Usage |
+|---------|-------------|---------------|
+| `ZADD` | Add scored members | Leaderboards, rankings |
+| `ZREM` | Remove members | Ranking maintenance |
+| `ZRANGE` | Get range by rank | Top-N queries |
+| `ZCARD` | Get sorted set size | Size monitoring |
+| `ZSCORE` | Get member score | Score retrieval |
+
+### Pub/Sub Operations
+| Command | Description | Example Usage |
+|---------|-------------|---------------|
+| `PUBLISH` | Publish message | Event broadcasting |
+| `SUBSCRIBE` | Subscribe to channels | Event listening |
+
+### Usage Examples
+
+```bash
+# String-heavy workload
+python main.py run --operations SET,GET,INCR,APPEND \
+  --operation-weights "{\"SET\": 0.4, \"GET\": 0.4, \"INCR\": 0.1, \"APPEND\": 0.1}"
+
+# Mixed data types workload
+python main.py run --operations SET,GET,LPUSH,SADD,HSET,ZADD \
+  --operation-weights "{\"SET\": 0.2, \"GET\": 0.3, \"LPUSH\": 0.2, \"SADD\": 0.1, \"HSET\": 0.1, \"ZADD\": 0.1}"
+
+# Key management focused
+python main.py run --operations SET,GET,EXISTS,EXPIRE,TTL,DEL \
+  --operation-weights "{\"SET\": 0.3, \"GET\": 0.3, \"EXISTS\": 0.1, \"EXPIRE\": 0.1, \"TTL\": 0.1, \"DEL\": 0.1}"
 ```
 
 ## Configuration

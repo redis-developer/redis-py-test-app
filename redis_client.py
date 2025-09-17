@@ -257,6 +257,103 @@ class RedisClient:
         """Get the length of a list."""
         return self._execute_with_metrics('LLEN', self._client.llen, key)
 
+    def ltrim(self, key: str, start: int, end: int) -> bool:
+        """Trim a list to the specified range."""
+        return self._execute_with_metrics('LTRIM', self._client.ltrim, key, start, end)
+
+    # String operations
+    def append(self, key: str, value: str) -> int:
+        """Append a value to a string."""
+        return self._execute_with_metrics('APPEND', self._client.append, key, value)
+
+    def strlen(self, key: str) -> int:
+        """Get the length of a string."""
+        return self._execute_with_metrics('STRLEN', self._client.strlen, key)
+
+    # Key operations
+    def exists(self, *keys: str) -> int:
+        """Check if keys exist."""
+        return self._execute_with_metrics('EXISTS', self._client.exists, *keys)
+
+    def expire(self, key: str, time: int) -> bool:
+        """Set a key's time to live in seconds."""
+        return self._execute_with_metrics('EXPIRE', self._client.expire, key, time)
+
+    def ttl(self, key: str) -> int:
+        """Get the time to live for a key."""
+        return self._execute_with_metrics('TTL', self._client.ttl, key)
+
+    def type(self, key: str) -> str:
+        """Get the type of a key."""
+        return self._execute_with_metrics('TYPE', self._client.type, key)
+
+    def incrby(self, key: str, amount: int) -> int:
+        """Increment a key by a specific amount."""
+        return self._execute_with_metrics('INCRBY', self._client.incrby, key, amount)
+
+    def decrby(self, key: str, amount: int) -> int:
+        """Decrement a key by a specific amount."""
+        return self._execute_with_metrics('DECRBY', self._client.decrby, key, amount)
+
+    # Set operations
+    def sadd(self, key: str, *values: str) -> int:
+        """Add members to a set."""
+        return self._execute_with_metrics('SADD', self._client.sadd, key, *values)
+
+    def srem(self, key: str, *values: str) -> int:
+        """Remove members from a set."""
+        return self._execute_with_metrics('SREM', self._client.srem, key, *values)
+
+    def smembers(self, key: str) -> set:
+        """Get all members of a set."""
+        return self._execute_with_metrics('SMEMBERS', self._client.smembers, key)
+
+    def scard(self, key: str) -> int:
+        """Get the number of members in a set."""
+        return self._execute_with_metrics('SCARD', self._client.scard, key)
+
+    # Hash operations
+    def hset(self, key: str, field: str, value: str) -> int:
+        """Set a field in a hash."""
+        return self._execute_with_metrics('HSET', self._client.hset, key, field, value)
+
+    def hget(self, key: str, field: str) -> Optional[str]:
+        """Get a field from a hash."""
+        return self._execute_with_metrics('HGET', self._client.hget, key, field)
+
+    def hdel(self, key: str, *fields: str) -> int:
+        """Delete fields from a hash."""
+        return self._execute_with_metrics('HDEL', self._client.hdel, key, *fields)
+
+    def hgetall(self, key: str) -> Dict[str, str]:
+        """Get all fields and values from a hash."""
+        return self._execute_with_metrics('HGETALL', self._client.hgetall, key)
+
+    def hlen(self, key: str) -> int:
+        """Get the number of fields in a hash."""
+        return self._execute_with_metrics('HLEN', self._client.hlen, key)
+
+    # Sorted Set operations
+    def zadd(self, key: str, mapping: Dict[str, float]) -> int:
+        """Add members to a sorted set."""
+        return self._execute_with_metrics('ZADD', self._client.zadd, key, mapping)
+
+    def zrem(self, key: str, *members: str) -> int:
+        """Remove members from a sorted set."""
+        return self._execute_with_metrics('ZREM', self._client.zrem, key, *members)
+
+    def zrange(self, key: str, start: int, end: int, withscores: bool = False) -> List:
+        """Get a range of members from a sorted set."""
+        return self._execute_with_metrics('ZRANGE', self._client.zrange, key, start, end, withscores=withscores)
+
+    def zcard(self, key: str) -> int:
+        """Get the number of members in a sorted set."""
+        return self._execute_with_metrics('ZCARD', self._client.zcard, key)
+
+    def zscore(self, key: str, member: str) -> Optional[float]:
+        """Get the score of a member in a sorted set."""
+        return self._execute_with_metrics('ZSCORE', self._client.zscore, key, member)
+
     # Pub/Sub operations
     def publish(self, channel: str, message: str) -> int:
         """Publish a message to a channel."""

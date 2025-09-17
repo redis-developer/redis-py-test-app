@@ -400,12 +400,12 @@ class PipelineWorkload(BaseWorkload):
             try:
                 pipe.execute()
             except Exception as e:
-                avg_duration = time.time() - start_time / operations_count if operations_count > 0 else 0
+                avg_duration = (time.time() - start_time) / operations_count if operations_count > 0 else 0
                 for operation in operations:
                     self.metrics.record_operation(operation, avg_duration, False, error_type=type(e).__name__)
                 raise
 
-            avg_duration = time.time() - start_time / operations_count if operations_count > 0 else 0
+            avg_duration = (time.time() - start_time) / operations_count if operations_count > 0 else 0
             for operation in operations:
                 self.metrics.record_operation(operation, avg_duration, True)
 

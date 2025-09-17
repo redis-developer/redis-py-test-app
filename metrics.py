@@ -238,7 +238,6 @@ class MetricsCollector:
             "client": client
         }
         duration_ms = duration * 1000
-        print(f"Recording connection init duration: {duration_ms}ms")
         self.otel_client_init_duration.record(duration_ms, labels)
 
 
