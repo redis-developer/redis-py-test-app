@@ -31,8 +31,6 @@ class RedisClient:
         # Connection pool configuration
         self._pool_kwargs = self._build_pool_kwargs()
 
-        print(f"Pool kwargs: {self._pool_kwargs}")
-        
         # Initialize connection
         self._connect()
     
