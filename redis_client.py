@@ -30,6 +30,8 @@ class RedisClient:
 
         # Connection pool configuration
         self._pool_kwargs = self._build_pool_kwargs()
+
+        print(f"Pool kwargs: {self._pool_kwargs}")
         
         # Initialize connection
         self._connect()
@@ -37,12 +39,16 @@ class RedisClient:
     def _build_pool_kwargs(self) -> Dict[str, Any]:
         """Build connection pool keyword arguments."""
         kwargs = {
-            'socket_timeout': self.config.socket_timeout,
-            'socket_connect_timeout': self.config.socket_connect_timeout,
             'socket_keepalive': self.config.socket_keepalive,
             'socket_keepalive_options': self.config.socket_keepalive_options,
             'max_connections': self.config.max_connections,
         }
+
+        # Only add timeout parameters if they are not None (let redis-py use defaults)
+        if self.config.socket_timeout is not None:
+            kwargs['socket_timeout'] = self.config.socket_timeout
+        if self.config.socket_connect_timeout is not None:
+            kwargs['socket_connect_timeout'] = self.config.socket_connect_timeout
 
         # Create Retry object for client-level retries (network/connection issues)
         if self.config.client_retry_attempts > 0:
@@ -105,16 +111,24 @@ class RedisClient:
     def _connect_standalone(self):
         """Connect to standalone Redis instance."""
         start_time = time.time()
-        if self.config.maintenance_events_enabled:
+
+        if self.config.maintenance_notifications_enabled:
+            # Build maintenance events config, only passing relaxed_timeouts if not None
+            maintenance_config_kwargs = {"enabled": self.config.maintenance_notifications_enabled}
+            if self.config.maintenance_relaxed_timeout is not None:
+                maintenance_config_kwargs["relaxed_timeouts"] = self.config.maintenance_relaxed_timeout
+
+
             self._client = redis.Redis(
                 host=self.config.host,
                 port=self.config.port,
                 db=self.config.database,
-                maintenance_events_config = redis.maintenance_events.MaintenanceEventsConfig(enabled=self.config.maintenance_events_enabled),
+                maintenance_events_config=redis.maintenance_events.MaintenanceEventsConfig(**maintenance_config_kwargs),
                 protocol=self.config.protocol,
                 **self._pool_kwargs
             )
         else:
+            print("\n\n\n self._pool_kwargs", self._pool_kwargs)
             self._client = redis.Redis(
                 host=self.config.host,
                 port=self.config.port,
