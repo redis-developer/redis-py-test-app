@@ -49,7 +49,7 @@ class RedisClient:
             kwargs['socket_connect_timeout'] = self.config.socket_connect_timeout
 
         # Create Retry object for client-level retries (network/connection issues)
-        if self.config.client_retry_attempts > 0:
+        if self.config.client_retry_attempts >= 0:
             kwargs['retry'] = Retry(ExponentialWithJitterBackoff(), self.config.client_retry_attempts)
 
         # Add authentication if provided
