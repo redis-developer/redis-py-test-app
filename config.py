@@ -2,7 +2,7 @@
 Configuration management for Redis test application.
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 import yaml
 import json
 import importlib.metadata
@@ -90,10 +90,20 @@ class RedisConnectionConfig:
     
     # TLS configuration
     ssl: bool = False
-    ssl_cert_reqs: str = "required"
-    ssl_ca_certs: Optional[str] = None
-    ssl_certfile: Optional[str] = None
     ssl_keyfile: Optional[str] = None
+    ssl_certfile: Optional[str] = None
+    ssl_cert_reqs: Union[str, int] = "required"  # Can be "required", "optional", "none" or ssl.VerifyMode
+    ssl_ca_certs: Optional[str] = None
+    ssl_ca_path: Optional[str] = None
+    ssl_ca_data: Optional[str] = None
+    ssl_check_hostname: bool = True
+    ssl_password: Optional[str] = None
+    ssl_validate_ocsp: bool = False
+    ssl_validate_ocsp_stapled: bool = False
+    ssl_ocsp_context: Optional[Any] = None  # OpenSSL.SSL.Context
+    ssl_ocsp_expected_cert: Optional[str] = None
+    ssl_min_version: Optional[Any] = None  # ssl.TLSVersion
+    ssl_ciphers: Optional[str] = None
     
     # Connection settings
     socket_timeout: Optional[float] = None

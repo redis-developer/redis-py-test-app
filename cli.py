@@ -119,10 +119,17 @@ def describe_profile(profile_name):
 @click.option('--cluster', is_flag=True, default=lambda: get_env_or_default('REDIS_CLUSTER', False, bool), help='Use Redis Cluster mode')
 @click.option('--cluster-nodes', default=lambda: get_env_or_default('REDIS_CLUSTER_NODES', None), help='Comma-separated list of cluster nodes (host:port)')
 @click.option('--ssl', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL', False, bool), help='Use SSL/TLS connection')
+@click.option('--ssl-keyfile', default=lambda: get_env_or_default('REDIS_SSL_KEYFILE', None), help='Path to client private key file')
+@click.option('--ssl-certfile', default=lambda: get_env_or_default('REDIS_SSL_CERTFILE', None), help='Path to client certificate file')
 @click.option('--ssl-cert-reqs', default=lambda: get_env_or_default('REDIS_SSL_CERT_REQS', 'required'), type=click.Choice(['none', 'optional', 'required']), help='SSL certificate requirements')
 @click.option('--ssl-ca-certs', default=lambda: get_env_or_default('REDIS_SSL_CA_CERTS', None), help='Path to CA certificates file')
-@click.option('--ssl-certfile', default=lambda: get_env_or_default('REDIS_SSL_CERTFILE', None), help='Path to client certificate file')
-@click.option('--ssl-keyfile', default=lambda: get_env_or_default('REDIS_SSL_KEYFILE', None), help='Path to client private key file')
+@click.option('--ssl-ca-path', default=lambda: get_env_or_default('REDIS_SSL_CA_PATH', None), help='Path to directory containing CA certificates')
+@click.option('--ssl-ca-data', default=lambda: get_env_or_default('REDIS_SSL_CA_DATA', None), help='CA certificate data as string')
+@click.option('--ssl-check-hostname', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_CHECK_HOSTNAME', True, bool), help='Check SSL hostname')
+@click.option('--ssl-password', default=lambda: get_env_or_default('REDIS_SSL_PASSWORD', None), help='Password for SSL private key')
+@click.option('--ssl-validate-ocsp', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_VALIDATE_OCSP', False, bool), help='Validate OCSP')
+@click.option('--ssl-validate-ocsp-stapled', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_VALIDATE_OCSP_STAPLED', False, bool), help='Validate OCSP stapled')
+@click.option('--ssl-ciphers', default=lambda: get_env_or_default('REDIS_SSL_CIPHERS', None), help='SSL cipher suite')
 @click.option('--socket-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_TIMEOUT', None), help='Socket timeout in seconds')
 @click.option('--socket-connect-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_CONNECT_TIMEOUT', None), help='Socket connect timeout in seconds')
 @click.option('--max-connections', type=int, default=lambda: get_env_or_default('REDIS_MAX_CONNECTIONS', 50, int), help='Maximum connections per client')
@@ -286,10 +293,17 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         cluster_mode=kwargs['cluster'],
         cluster_nodes=cluster_nodes,
         ssl=kwargs['ssl'],
+        ssl_keyfile=kwargs['ssl_keyfile'],
+        ssl_certfile=kwargs['ssl_certfile'],
         ssl_cert_reqs=kwargs['ssl_cert_reqs'],
         ssl_ca_certs=kwargs['ssl_ca_certs'],
-        ssl_certfile=kwargs['ssl_certfile'],
-        ssl_keyfile=kwargs['ssl_keyfile'],
+        ssl_ca_path=kwargs['ssl_ca_path'],
+        ssl_ca_data=kwargs['ssl_ca_data'],
+        ssl_check_hostname=kwargs['ssl_check_hostname'],
+        ssl_password=kwargs['ssl_password'],
+        ssl_validate_ocsp=kwargs['ssl_validate_ocsp'],
+        ssl_validate_ocsp_stapled=kwargs['ssl_validate_ocsp_stapled'],
+        ssl_ciphers=kwargs['ssl_ciphers'],
         socket_timeout=kwargs['socket_timeout'],
         socket_connect_timeout=kwargs['socket_connect_timeout'],
         max_connections=kwargs['max_connections'],

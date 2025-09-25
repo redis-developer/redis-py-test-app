@@ -11,7 +11,7 @@ from redis.backoff import ExponentialWithJitterBackoff
 from redis.exceptions import (
     ConnectionError, TimeoutError, ClusterDownError
 )
-import ssl
+
 
 from config import RedisConnectionConfig
 from logger import get_logger
@@ -58,26 +58,39 @@ class RedisClient:
         
         # Add SSL configuration if enabled
         if self.config.ssl:
-            ssl_context = ssl.create_default_context()
-            
-            if self.config.ssl_cert_reqs == "none":
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
-            elif self.config.ssl_cert_reqs == "optional":
-                ssl_context.verify_mode = ssl.CERT_OPTIONAL
-            else:
-                ssl_context.verify_mode = ssl.CERT_REQUIRED
-            
-            if self.config.ssl_ca_certs:
-                ssl_context.load_verify_locations(self.config.ssl_ca_certs)
-            
-            if self.config.ssl_certfile and self.config.ssl_keyfile:
-                ssl_context.load_cert_chain(self.config.ssl_certfile, self.config.ssl_keyfile)
-            
-            kwargs.update({
-                'ssl': True,
-                'ssl_context': ssl_context
-            })
+            ssl_kwargs = {'ssl': True}
+
+            # Add SSL parameters directly as redis-py expects them
+            if self.config.ssl_keyfile is not None:
+                ssl_kwargs['ssl_keyfile'] = self.config.ssl_keyfile
+            if self.config.ssl_certfile is not None:
+                ssl_kwargs['ssl_certfile'] = self.config.ssl_certfile
+            if self.config.ssl_cert_reqs is not None:
+                ssl_kwargs['ssl_cert_reqs'] = self.config.ssl_cert_reqs
+            if self.config.ssl_ca_certs is not None:
+                ssl_kwargs['ssl_ca_certs'] = self.config.ssl_ca_certs
+            if self.config.ssl_ca_path is not None:
+                ssl_kwargs['ssl_ca_path'] = self.config.ssl_ca_path
+            if self.config.ssl_ca_data is not None:
+                ssl_kwargs['ssl_ca_data'] = self.config.ssl_ca_data
+            if self.config.ssl_check_hostname is not None:
+                ssl_kwargs['ssl_check_hostname'] = self.config.ssl_check_hostname
+            if self.config.ssl_password is not None:
+                ssl_kwargs['ssl_password'] = self.config.ssl_password
+            if self.config.ssl_validate_ocsp is not None:
+                ssl_kwargs['ssl_validate_ocsp'] = self.config.ssl_validate_ocsp
+            if self.config.ssl_validate_ocsp_stapled is not None:
+                ssl_kwargs['ssl_validate_ocsp_stapled'] = self.config.ssl_validate_ocsp_stapled
+            if self.config.ssl_ocsp_context is not None:
+                ssl_kwargs['ssl_ocsp_context'] = self.config.ssl_ocsp_context
+            if self.config.ssl_ocsp_expected_cert is not None:
+                ssl_kwargs['ssl_ocsp_expected_cert'] = self.config.ssl_ocsp_expected_cert
+            if self.config.ssl_min_version is not None:
+                ssl_kwargs['ssl_min_version'] = self.config.ssl_min_version
+            if self.config.ssl_ciphers is not None:
+                ssl_kwargs['ssl_ciphers'] = self.config.ssl_ciphers
+
+            kwargs.update(ssl_kwargs)
         
         return kwargs
     
@@ -110,6 +123,8 @@ class RedisClient:
         """Connect to standalone Redis instance."""
         start_time = time.time()
 
+        print("\n\n\n ------- Pool kwargs:", {**self._pool_kwargs})
+
         if self.config.maintenance_notifications_enabled:
             # Build maintenance events config, only passing relaxed_timeouts if not None
             maintenance_config_kwargs = {"enabled": self.config.maintenance_notifications_enabled}
@@ -126,7 +141,6 @@ class RedisClient:
                 **self._pool_kwargs
             )
         else:
-            print("\n\n\n self._pool_kwargs", self._pool_kwargs)
             self._client = redis.Redis(
                 host=self.config.host,
                 port=self.config.port,
