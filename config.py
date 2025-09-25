@@ -7,6 +7,7 @@ import yaml
 import json
 import importlib.metadata
 import re
+import ssl as ssl_module
 
 
 def get_redis_version() -> str:
@@ -80,7 +81,6 @@ class RedisConnectionConfig:
     username: Optional[str] = None
     password: Optional[str] = None
     database: int = 0  # Changed from 'db' to match lettuce
-    use_tls: bool = False  # Changed from 'ssl' to match lettuce
     verify_peer: bool = False
     protocol: int = 3  # 2 for RESP2, 3 for RESP3
     
@@ -98,7 +98,7 @@ class RedisConnectionConfig:
     ssl_ca_data: Optional[str] = None
     ssl_check_hostname: bool = True
     ssl_password: Optional[str] = None
-    ssl_min_version: Optional[Any] = None  # ssl.TLSVersion
+    ssl_min_version: Optional[ssl_module.TLSVersion] = None  # ssl.TLSVersion
     ssl_ciphers: Optional[str] = None
     
     # Connection settings

@@ -2,6 +2,7 @@
 Redis client management with support for standalone, cluster, and TLS connections.
 """
 import time
+import ssl
 from typing import Optional, List, Dict, Any, Union
 import redis
 import redis.sentinel
@@ -16,6 +17,59 @@ from redis.exceptions import (
 from config import RedisConnectionConfig
 from logger import get_logger
 from metrics import get_metrics_collector
+
+
+def _convert_ssl_min_version(version_str: Optional[str]) -> Optional[ssl.TLSVersion]:
+    """Convert string SSL version to ssl.TLSVersion enum."""
+    if not version_str:
+        return None
+
+    # Mapping of string values to ssl.TLSVersion enum values
+    version_mapping = {
+        'TLSv1': ssl.TLSVersion.TLSv1,
+        'TLSv1_1': ssl.TLSVersion.TLSv1_1,
+        'TLSv1_2': ssl.TLSVersion.TLSv1_2,
+        'TLSv1_3': ssl.TLSVersion.TLSv1_3,
+        # Also support lowercase variants
+        'tlsv1': ssl.TLSVersion.TLSv1,
+        'tlsv1_1': ssl.TLSVersion.TLSv1_1,
+        'tlsv1_2': ssl.TLSVersion.TLSv1_2,
+        'tlsv1_3': ssl.TLSVersion.TLSv1_3,
+        # Support numeric versions
+        '1.0': ssl.TLSVersion.TLSv1,
+        '1.1': ssl.TLSVersion.TLSv1_1,
+        '1.2': ssl.TLSVersion.TLSv1_2,
+        '1.3': ssl.TLSVersion.TLSv1_3,
+    }
+
+    if version_str in version_mapping:
+        return version_mapping[version_str]
+    else:
+        raise ValueError(f"Unsupported SSL version: {version_str}. "
+                        f"Supported versions: {list(version_mapping.keys())}")
+
+
+def _convert_ssl_cert_reqs(cert_reqs: Union[str, int]) -> Union[ssl.VerifyMode, int]:
+    """Convert string cert requirements to ssl.VerifyMode enum."""
+    if isinstance(cert_reqs, int):
+        return cert_reqs
+
+    # Mapping of string values to ssl.VerifyMode enum values
+    cert_reqs_mapping = {
+        'none': ssl.CERT_NONE,
+        'optional': ssl.CERT_OPTIONAL,
+        'required': ssl.CERT_REQUIRED,
+        # Also support uppercase variants
+        'NONE': ssl.CERT_NONE,
+        'OPTIONAL': ssl.CERT_OPTIONAL,
+        'REQUIRED': ssl.CERT_REQUIRED,
+    }
+
+    if cert_reqs in cert_reqs_mapping:
+        return cert_reqs_mapping[cert_reqs]
+    else:
+        raise ValueError(f"Unsupported SSL cert requirements: {cert_reqs}. "
+                        f"Supported values: {list(cert_reqs_mapping.keys())}")
 
 
 class RedisClient:
@@ -60,13 +114,15 @@ class RedisClient:
         if self.config.ssl:
             ssl_kwargs = {'ssl': True}
 
+
+
             # Add SSL parameters directly as redis-py expects them
             if self.config.ssl_keyfile is not None:
                 ssl_kwargs['ssl_keyfile'] = self.config.ssl_keyfile
             if self.config.ssl_certfile is not None:
                 ssl_kwargs['ssl_certfile'] = self.config.ssl_certfile
             if self.config.ssl_cert_reqs is not None:
-                ssl_kwargs['ssl_cert_reqs'] = self.config.ssl_cert_reqs
+                ssl_kwargs['ssl_cert_reqs'] = _convert_ssl_cert_reqs(self.config.ssl_cert_reqs)
             if self.config.ssl_ca_certs is not None:
                 ssl_kwargs['ssl_ca_certs'] = self.config.ssl_ca_certs
             if self.config.ssl_ca_path is not None:
@@ -78,7 +134,7 @@ class RedisClient:
             if self.config.ssl_password is not None:
                 ssl_kwargs['ssl_password'] = self.config.ssl_password
             if self.config.ssl_min_version is not None:
-                ssl_kwargs['ssl_min_version'] = self.config.ssl_min_version
+                ssl_kwargs['ssl_min_version'] = _convert_ssl_min_version(self.config.ssl_min_version)
             if self.config.ssl_ciphers is not None:
                 ssl_kwargs['ssl_ciphers'] = self.config.ssl_ciphers
 

@@ -127,7 +127,7 @@ def describe_profile(profile_name):
 @click.option('--ssl-ca-data', default=lambda: get_env_or_default('REDIS_SSL_CA_DATA', None), help='CA certificate data as string')
 @click.option('--ssl-check-hostname', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_CHECK_HOSTNAME', True, bool), help='Check SSL hostname')
 @click.option('--ssl-password', default=lambda: get_env_or_default('REDIS_SSL_PASSWORD', None), help='Password for SSL private key')
-@click.option('--ssl-min-version', default=lambda: get_env_or_default('REDIS_SSL_MIN_VERSION', None), help='Minimum SSL/TLS version')
+@click.option('--ssl-min-version', default=lambda: get_env_or_default('REDIS_SSL_MIN_VERSION', None), help='Minimum SSL/TLS version (TLSv1, TLSv1_1, TLSv1_2, TLSv1_3 or 1.0, 1.1, 1.2, 1.3)')
 @click.option('--ssl-ciphers', default=lambda: get_env_or_default('REDIS_SSL_CIPHERS', None), help='SSL cipher suite')
 @click.option('--socket-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_TIMEOUT', None), help='Socket timeout in seconds')
 @click.option('--socket-connect-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_CONNECT_TIMEOUT', None), help='Socket connect timeout in seconds')
