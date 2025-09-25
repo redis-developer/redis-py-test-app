@@ -77,14 +77,6 @@ class RedisClient:
                 ssl_kwargs['ssl_check_hostname'] = self.config.ssl_check_hostname
             if self.config.ssl_password is not None:
                 ssl_kwargs['ssl_password'] = self.config.ssl_password
-            if self.config.ssl_validate_ocsp is not None:
-                ssl_kwargs['ssl_validate_ocsp'] = self.config.ssl_validate_ocsp
-            if self.config.ssl_validate_ocsp_stapled is not None:
-                ssl_kwargs['ssl_validate_ocsp_stapled'] = self.config.ssl_validate_ocsp_stapled
-            if self.config.ssl_ocsp_context is not None:
-                ssl_kwargs['ssl_ocsp_context'] = self.config.ssl_ocsp_context
-            if self.config.ssl_ocsp_expected_cert is not None:
-                ssl_kwargs['ssl_ocsp_expected_cert'] = self.config.ssl_ocsp_expected_cert
             if self.config.ssl_min_version is not None:
                 ssl_kwargs['ssl_min_version'] = self.config.ssl_min_version
             if self.config.ssl_ciphers is not None:

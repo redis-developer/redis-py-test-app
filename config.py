@@ -98,10 +98,6 @@ class RedisConnectionConfig:
     ssl_ca_data: Optional[str] = None
     ssl_check_hostname: bool = True
     ssl_password: Optional[str] = None
-    ssl_validate_ocsp: bool = False
-    ssl_validate_ocsp_stapled: bool = False
-    ssl_ocsp_context: Optional[Any] = None  # OpenSSL.SSL.Context
-    ssl_ocsp_expected_cert: Optional[str] = None
     ssl_min_version: Optional[Any] = None  # ssl.TLSVersion
     ssl_ciphers: Optional[str] = None
     

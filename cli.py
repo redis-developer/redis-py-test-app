@@ -127,8 +127,7 @@ def describe_profile(profile_name):
 @click.option('--ssl-ca-data', default=lambda: get_env_or_default('REDIS_SSL_CA_DATA', None), help='CA certificate data as string')
 @click.option('--ssl-check-hostname', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_CHECK_HOSTNAME', True, bool), help='Check SSL hostname')
 @click.option('--ssl-password', default=lambda: get_env_or_default('REDIS_SSL_PASSWORD', None), help='Password for SSL private key')
-@click.option('--ssl-validate-ocsp', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_VALIDATE_OCSP', False, bool), help='Validate OCSP')
-@click.option('--ssl-validate-ocsp-stapled', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_VALIDATE_OCSP_STAPLED', False, bool), help='Validate OCSP stapled')
+@click.option('--ssl-min-version', default=lambda: get_env_or_default('REDIS_SSL_MIN_VERSION', None), help='Minimum SSL/TLS version')
 @click.option('--ssl-ciphers', default=lambda: get_env_or_default('REDIS_SSL_CIPHERS', None), help='SSL cipher suite')
 @click.option('--socket-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_TIMEOUT', None), help='Socket timeout in seconds')
 @click.option('--socket-connect-timeout', type=float, default=lambda: get_env_or_default('REDIS_SOCKET_CONNECT_TIMEOUT', None), help='Socket connect timeout in seconds')
@@ -301,8 +300,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         ssl_ca_data=kwargs['ssl_ca_data'],
         ssl_check_hostname=kwargs['ssl_check_hostname'],
         ssl_password=kwargs['ssl_password'],
-        ssl_validate_ocsp=kwargs['ssl_validate_ocsp'],
-        ssl_validate_ocsp_stapled=kwargs['ssl_validate_ocsp_stapled'],
+        ssl_min_version=kwargs['ssl_min_version'],
         ssl_ciphers=kwargs['ssl_ciphers'],
         socket_timeout=kwargs['socket_timeout'],
         socket_connect_timeout=kwargs['socket_connect_timeout'],
