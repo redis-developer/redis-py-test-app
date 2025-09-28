@@ -116,7 +116,7 @@ def describe_profile(profile_name):
 @click.option('--port', type=int, default=lambda: get_env_or_default('REDIS_PORT', 6379, int), help='Redis port')
 @click.option('--password', default=lambda: get_env_or_default('REDIS_PASSWORD', None), help='Redis password')
 @click.option('--db', type=int, default=lambda: get_env_or_default('REDIS_DB', 0, int), help='Redis database number')
-@click.option('--cluster', is_flag=True, default=lambda: get_env_or_default('REDIS_CLUSTER', False, bool), help='Use Redis Cluster mode')
+@click.option('--cluster-enabled', type=bool, default=lambda: get_env_or_default('REDIS_CLUSTER', False, bool), help='Use Redis Cluster mode')
 @click.option('--cluster-nodes', default=lambda: get_env_or_default('REDIS_CLUSTER_NODES', None), help='Comma-separated list of cluster nodes (host:port)')
 @click.option('--ssl-enabled', type=bool, default=lambda: get_env_or_default('REDIS_SSL_ENABLED', False, bool), help='Use SSL/TLS connection')
 @click.option('--ssl-keyfile', default=lambda: get_env_or_default('REDIS_SSL_KEYFILE', None), help='Path to client private key file')
@@ -125,7 +125,7 @@ def describe_profile(profile_name):
 @click.option('--ssl-ca-certs', default=lambda: get_env_or_default('REDIS_SSL_CA_CERTS', None), help='Path to CA certificates file')
 @click.option('--ssl-ca-path', default=lambda: get_env_or_default('REDIS_SSL_CA_PATH', None), help='Path to directory containing CA certificates')
 @click.option('--ssl-ca-data', default=lambda: get_env_or_default('REDIS_SSL_CA_DATA', None), help='CA certificate data as string')
-@click.option('--ssl-check-hostname', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_CHECK_HOSTNAME', True, bool), help='Check SSL hostname')
+@click.option('--ssl-check-hostname', type=bool, default=lambda: get_env_or_default('REDIS_SSL_CHECK_HOSTNAME', True, bool), help='Check SSL hostname')
 @click.option('--ssl-password', default=lambda: get_env_or_default('REDIS_SSL_PASSWORD', None), help='Password for SSL private key')
 @click.option('--ssl-min-version', default=lambda: get_env_or_default('REDIS_SSL_MIN_VERSION', 'TLSv1_2'), help='Minimum SSL/TLS version (TLSv1, TLSv1_1, TLSv1_2, TLSv1_3 or 1.0, 1.1, 1.2, 1.3). Default: TLSv1_2 for Redis Enterprise compatibility')
 @click.option('--ssl-ciphers', default=lambda: get_env_or_default('REDIS_SSL_CIPHERS', None), help='SSL cipher suite')
@@ -161,9 +161,9 @@ def describe_profile(profile_name):
 # ============================================================================
 # Pipeline & Advanced Parameters
 # ============================================================================
-@click.option('--use-pipeline', is_flag=True, default=lambda: get_env_or_default('TEST_USE_PIPELINE', False, bool), help='Use Redis pipelining')
+@click.option('--use-pipeline', type=bool, default=lambda: get_env_or_default('TEST_USE_PIPELINE', False, bool), help='Use Redis pipelining')
 @click.option('--pipeline-size', type=int, default=lambda: get_env_or_default('TEST_PIPELINE_SIZE', 10, int), help='Number of operations per pipeline')
-@click.option('--async-mode', is_flag=True, default=lambda: get_env_or_default('TEST_ASYNC_MODE', False, bool), help='Use asynchronous operations')
+@click.option('--async-mode', type=bool, default=lambda: get_env_or_default('TEST_ASYNC_MODE', False, bool), help='Use asynchronous operations')
 @click.option('--transaction-size', type=int, default=lambda: get_env_or_default('TEST_TRANSACTION_SIZE', 5, int), help='Number of operations per transaction')
 @click.option('--pubsub-channels', default=lambda: get_env_or_default('TEST_PUBSUB_CHANNELS', None), help='Comma-separated list of pub/sub channels')
 
@@ -173,7 +173,7 @@ def describe_profile(profile_name):
 @click.option('--log-level', default=lambda: get_env_or_default('LOG_LEVEL', 'INFO'), type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']), help='Logging level')
 @click.option('--log-file', default=lambda: get_env_or_default('LOG_FILE', None), help='Log file path')
 @click.option('--output-file', default=lambda: get_env_or_default('OUTPUT_FILE', None), help='Output file for final test summary (JSON). If not provided, prints to stdout.')
-@click.option('--quiet', is_flag=True, default=False, help='Suppress periodic stats output')
+@click.option('--quiet', type=bool, default=False, help='Suppress periodic stats output')
 
 # ============================================================================
 # OpenTelemetry & Metrics Parameters
@@ -289,7 +289,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         port=kwargs['port'],
         password=kwargs['password'],
         database=kwargs['db'],
-        cluster_mode=kwargs['cluster'],
+        cluster_mode=kwargs['cluster_enabled'],
         cluster_nodes=cluster_nodes,
         ssl=kwargs['ssl_enabled'],
         ssl_keyfile=kwargs['ssl_keyfile'],
