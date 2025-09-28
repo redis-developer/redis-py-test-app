@@ -301,7 +301,7 @@ make dev-stop
 --db DB                          # Redis database number (default: 0)
 --cluster                        # Use Redis Cluster mode
 --cluster-nodes NODES            # Comma-separated cluster nodes (host:port)
---ssl                            # Use SSL/TLS connection
+--ssl-enabled                    # Use SSL/TLS connection
 --ssl-cert-reqs LEVEL           # SSL certificate requirements (none/optional/required)
 --ssl-ca-certs PATH             # Path to CA certificates file
 --ssl-certfile PATH             # Path to client certificate file

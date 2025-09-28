@@ -118,7 +118,7 @@ def describe_profile(profile_name):
 @click.option('--db', type=int, default=lambda: get_env_or_default('REDIS_DB', 0, int), help='Redis database number')
 @click.option('--cluster', is_flag=True, default=lambda: get_env_or_default('REDIS_CLUSTER', False, bool), help='Use Redis Cluster mode')
 @click.option('--cluster-nodes', default=lambda: get_env_or_default('REDIS_CLUSTER_NODES', None), help='Comma-separated list of cluster nodes (host:port)')
-@click.option('--ssl', is_flag=True, default=lambda: get_env_or_default('REDIS_SSL_ENABLED', False, bool), help='Use SSL/TLS connection')
+@click.option('--ssl-enabled', type=bool, default=lambda: get_env_or_default('REDIS_SSL_ENABLED', False, bool), help='Use SSL/TLS connection')
 @click.option('--ssl-keyfile', default=lambda: get_env_or_default('REDIS_SSL_KEYFILE', None), help='Path to client private key file')
 @click.option('--ssl-certfile', default=lambda: get_env_or_default('REDIS_SSL_CERTFILE', None), help='Path to client certificate file')
 @click.option('--ssl-cert-reqs', default=lambda: get_env_or_default('REDIS_SSL_CERT_REQS', 'required'), type=click.Choice(['none', 'optional', 'required']), help='SSL certificate requirements')
@@ -291,7 +291,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
         database=kwargs['db'],
         cluster_mode=kwargs['cluster'],
         cluster_nodes=cluster_nodes,
-        ssl=kwargs['ssl'],
+        ssl=kwargs['ssl_enabled'],
         ssl_keyfile=kwargs['ssl_keyfile'],
         ssl_certfile=kwargs['ssl_certfile'],
         ssl_cert_reqs=kwargs['ssl_cert_reqs'],

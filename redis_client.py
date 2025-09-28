@@ -115,8 +115,6 @@ class RedisClient:
         if self.config.ssl:
             ssl_kwargs = {'ssl': True}
 
-
-
             # Add SSL parameters directly as redis-py expects them
             if self.config.ssl_keyfile is not None:
                 ssl_kwargs['ssl_keyfile'] = self.config.ssl_keyfile
