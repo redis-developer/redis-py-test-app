@@ -35,7 +35,7 @@ make start
 
 ```bash
 # Install dependencies
-make install-deps
+make install-deps-venv
 
 # Test Redis connection
 make test-connection

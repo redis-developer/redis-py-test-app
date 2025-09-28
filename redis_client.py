@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any, Union
 import redis
 import redis.sentinel
 from redis.cluster import RedisCluster
+from redis.maint_notifications import MaintNotificationsConfig
 from redis.retry import Retry
 from redis.backoff import ExponentialWithJitterBackoff
 from redis.exceptions import (
@@ -134,7 +135,11 @@ class RedisClient:
             if self.config.ssl_password is not None:
                 ssl_kwargs['ssl_password'] = self.config.ssl_password
             if self.config.ssl_min_version is not None:
-                ssl_kwargs['ssl_min_version'] = _convert_ssl_min_version(self.config.ssl_min_version)
+                # Handle both string and TLSVersion objects
+                if isinstance(self.config.ssl_min_version, str):
+                    ssl_kwargs['ssl_min_version'] = _convert_ssl_min_version(self.config.ssl_min_version)
+                else:
+                    ssl_kwargs['ssl_min_version'] = self.config.ssl_min_version
             if self.config.ssl_ciphers is not None:
                 ssl_kwargs['ssl_ciphers'] = self.config.ssl_ciphers
 
@@ -171,20 +176,20 @@ class RedisClient:
         """Connect to standalone Redis instance."""
         start_time = time.time()
 
-        print("\n\n\n ------- Pool kwargs:", {**self._pool_kwargs})
+        print("\n\n---- Args:" + str(self._pool_kwargs))
 
         if self.config.maintenance_notifications_enabled:
             # Build maintenance events config, only passing relaxed_timeouts if not None
             maintenance_config_kwargs = {"enabled": self.config.maintenance_notifications_enabled}
             if self.config.maintenance_relaxed_timeout is not None:
-                maintenance_config_kwargs["relaxed_timeouts"] = self.config.maintenance_relaxed_timeout
+                maintenance_config_kwargs["relaxed_timeout"] = self.config.maintenance_relaxed_timeout
 
 
             self._client = redis.Redis(
                 host=self.config.host,
                 port=self.config.port,
                 db=self.config.database,
-                maintenance_events_config=redis.maintenance_events.MaintenanceEventsConfig(**maintenance_config_kwargs),
+                maint_notifications_config=MaintNotificationsConfig(**maintenance_config_kwargs),
                 protocol=self.config.protocol,
                 **self._pool_kwargs
             )
