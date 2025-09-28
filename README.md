@@ -562,7 +562,7 @@ Override default operations and weights using escaped JSON format:
 ```bash
 # Basic example with equal weights
 python main.py run --workload-profile basic_rw \
-  --operation-weights "{\"SET\": 0.2, \"GET\": 0.2, \"LTRIM\": 0.2, \"LPUSH\": 0.2, \"INCR\": 0.2}"
+  --operation-weights "{\"SET\": 0.2, \"GET\": 0.2}"
 
 # High throughput with custom mix
 python main.py run --workload-profile high_throughput \

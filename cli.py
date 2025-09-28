@@ -312,10 +312,7 @@ def _build_config_from_args(kwargs) -> RunnerConfig:
 
 
     # Build workload config
-    workload_config = WorkloadConfig(
-        type="custom",
-        options={}
-    )
+    workload_config = WorkloadProfiles.get_profile("basic_rw")
 
     # If a profile is specified, use it. If any additional options have been specified, they will override the defaults
     if kwargs['workload_profile']:

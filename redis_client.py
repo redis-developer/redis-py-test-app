@@ -174,8 +174,6 @@ class RedisClient:
         """Connect to standalone Redis instance."""
         start_time = time.time()
 
-        print("\n\n---- Args:" + str(self._pool_kwargs))
-
         if self.config.maintenance_notifications_enabled:
             # Build maintenance events config, only passing relaxed_timeouts if not None
             maintenance_config_kwargs = {"enabled": self.config.maintenance_notifications_enabled}
