@@ -1,4 +1,6 @@
-redis==7.0.0b2
+# install redis-py from branch ps_oss_hitless_add_pubsub_tests
+git+https://github.com/redis/redis-py.git@feat/hitless_upgrade_sync_cluster_client#egg=redis
+#redis==7.1.0
 #redis==6.4.0
 click>=8.0.0
 prometheus-client>=0.16.0
