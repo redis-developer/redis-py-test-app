@@ -16,7 +16,7 @@ A high-performance Redis load testing application built with Python and redis-py
 
 ### Prerequisites
 
-- **Python 3.8+** with pip
+- **Python 3.10+** with pip
 - **Redis server** running (localhost:6379 by default)
 - **Redis Metrics Stack** (optional, for observability - separate repository)
 

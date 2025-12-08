@@ -1,12 +1,12 @@
 # Redis Python Test App - Makefile
-.PHONY: help install-python39 install-deps-venv test test-connection build clean
+.PHONY: help install-python310 install-deps-venv test test-connection build clean
 
 # Default target
 help:
 	@echo "Redis Python Test App - Available Commands:"
 	@echo ""
 	@echo "🚀 Development Commands:"
-	@echo "  make install-python39  - Install Python 3.9 on Ubuntu/Debian systems"
+	@echo "  make install-python310  - Install Python 3.10 on Ubuntu/Debian systems"
 	@echo "  make install-deps-venv - Create virtual environment and install dependencies"
 	@echo "  make test          - Run basic test (60 seconds)"
 	@echo "  make test-connection - Test Redis connection"
@@ -18,8 +18,8 @@ help:
 	@echo "  make clean         - Clean up Python cache and virtual environment"
 	@echo ""
 	@echo "📋 Prerequisites:"
-	@echo "  • Python 3.9+ installed (required for redis==7.0.0b1)"
-	@echo "  • Run 'make install-python39' to install Python 3.9 on Ubuntu/Debian"
+	@echo "  • Python 3.10+ installed (required for redis>=7.1.0)"
+	@echo "  • Run 'make install-python310' to install Python 3.10 on Ubuntu/Debian"
 	@echo "  • Run 'make install-deps-venv' to set up virtual environment"
 	@echo "  • Redis Metrics Stack must be running (separate repository)"
 	@echo "  • Redis accessible at localhost:6379"
@@ -33,27 +33,27 @@ IMAGE_TAG ?= latest
 # Development Commands
 #==============================================================================
 
-install-python39: ## Install Python 3.9 on Ubuntu/Debian systems
-	@echo "🐍 Installing Python 3.9..."
-	@if command -v python3.9 >/dev/null 2>&1; then \
-		echo "✓ Python 3.9 already installed"; \
-		python3.9 --version; \
+install-python310: ## Install Python 3.10 on Ubuntu/Debian systems
+	@echo "🐍 Installing Python 3.10..."
+	@if command -v python3.10 >/dev/null 2>&1; then \
+		echo "✓ Python 3.10 already installed"; \
+		python3.10 --version; \
 	else \
-		echo "📦 Installing Python 3.9 and required packages..."; \
+		echo "📦 Installing Python 3.10 and required packages..."; \
 		sudo apt update; \
-		sudo apt install -y python3.9 python3.9-venv python3.9-dev python3.9-distutils; \
-		echo "✅ Python 3.9 installation complete"; \
-		python3.9 --version; \
+		sudo apt install -y python3.10 python3.10-venv python3.10-dev python3.10-distutils; \
+		echo "✅ Python 3.10 installation complete"; \
+		python3.10 --version; \
 	fi
 
 install-deps-venv: ## Create virtual environment and install dependencies
 	@echo "📦 Setting up Python virtual environment..."
 	@if [ ! -d "venv" ]; then \
-		echo "🔧 Creating virtual environment with Python 3.9..."; \
-		if command -v python3.9 >/dev/null 2>&1; then \
-			python3.9 -m venv venv; \
+		echo "🔧 Creating virtual environment with Python 3.10..."; \
+		if command -v python3.10 >/dev/null 2>&1; then \
+			python3.10 -m venv venv; \
 		else \
-			echo "❌ Python 3.9 not found. Run 'make install-python39' first."; \
+			echo "❌ Python 3.10 not found. Run 'make install-python310' first."; \
 			exit 1; \
 		fi; \
 	else \
