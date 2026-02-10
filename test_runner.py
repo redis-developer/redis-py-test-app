@@ -61,7 +61,7 @@ class TestRunner:
 
         except Exception as e:
             self.logger.error(f"Failed to create Redis client: {e}")
-            raise e
+            raise
 
     def _worker_thread(
         self, client_id: int, thread_id: int, shared_client: RedisClient
