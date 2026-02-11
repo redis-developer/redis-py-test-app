@@ -117,7 +117,7 @@ class RedisConnectionConfig:
 
     # Redis client-level retry configuration (redis-py Retry object)
     # These retries happen at the Redis client level for network/connection issues
-    client_retry_attempts: int = 3
+    client_retry_attempts: int = 0
     maintenance_notifications_enabled: Union[bool, str] = (
         True  # Can be True, False, or 'auto'
     )

@@ -111,6 +111,8 @@ class RedisClient:
             kwargs["retry"] = Retry(
                 ExponentialWithJitterBackoff(), self.config.client_retry_attempts
             )
+        else:
+            kwargs["retry"] = Retry(ExponentialWithJitterBackoff(), 0)
 
         # Add authentication if provided
         if self.config.password:
@@ -175,11 +177,9 @@ class RedisClient:
 
             return True
 
-        except Exception as e:
-            self.logger.error(f"Failed to connect to Redis: {e}")
-
+        except Exception:
             self._client = None
-            raise e
+            raise
 
     def _connect_standalone(self):
         """Connect to standalone Redis instance."""
@@ -240,24 +240,20 @@ class RedisClient:
                 maintenance_config_kwargs["relaxed_timeout"] = (
                     self.config.maintenance_relaxed_timeout
                 )
-            self._client = RedisCluster(
-                startup_nodes=startup_nodes,
-                decode_responses=False,
-                skip_full_coverage_check=True,
-                protocol=self.config.protocol,
-                maint_notifications_config=MaintNotificationsConfig(
-                    **maintenance_config_kwargs
-                ),
-                **self._pool_kwargs,
-            )
+
         else:
-            self._client = RedisCluster(
-                startup_nodes=startup_nodes,
-                decode_responses=False,
-                protocol=self.config.protocol,
-                skip_full_coverage_check=True,
-                **self._pool_kwargs,
-            )
+            maintenance_config_kwargs = {"enabled": False}
+
+        self._client = RedisCluster(
+            startup_nodes=startup_nodes,
+            decode_responses=False,
+            protocol=self.config.protocol,
+            skip_full_coverage_check=True,
+            maint_notifications_config=MaintNotificationsConfig(
+                **maintenance_config_kwargs
+            ),
+            **self._pool_kwargs,
+        )
         self.metrics.record_client_init_duration(
             time.time() - start_time, client="cluster-sync"
         )

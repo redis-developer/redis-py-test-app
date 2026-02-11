@@ -1,6 +1,7 @@
 """
 Redis workload implementations for different operation types.
 """
+
 import time
 import random
 import string
@@ -36,7 +37,7 @@ def initialize_value_cache(config: WorkloadConfig) -> None:
     if value_size is not None:
         # Fixed size - generate values of the same size
         for _ in range(cache_size):
-            _VALUE_CACHE.append(''.join(random.choices(_CHARSET, k=value_size)))
+            _VALUE_CACHE.append("".join(random.choices(_CHARSET, k=value_size)))
     else:
         # Variable size - generate values with different sizes in the range
         value_size_min = config.get_option("valueSizeMin", 100)
@@ -44,21 +45,22 @@ def initialize_value_cache(config: WorkloadConfig) -> None:
 
         for _ in range(cache_size):
             size = random.randint(value_size_min, value_size_max)
-            _VALUE_CACHE.append(''.join(random.choices(_CHARSET, k=size)))
+            _VALUE_CACHE.append("".join(random.choices(_CHARSET, k=size)))
+
 
 class BaseWorkload(ABC):
     """Base class for Redis workloads."""
-    
+
     def __init__(self, config: WorkloadConfig, client: RedisClient):
         self.config = config
         self.client = client
         self.logger = get_logger()
         self.metrics = get_metrics_collector()
-        
+
         # Generate random data for operations
         self._key_counter = 0
         self._key_lock = threading.Lock()
-    
+
     def _generate_key(self, operation: str = None) -> str:
         """Generate a unique key for operations."""
         with self._key_lock:
@@ -119,28 +121,57 @@ class BaseWorkload(ABC):
         """Get default operation based on workload type."""
         workload_type = self.config.type
         if workload_type == "high_throughput":
-            return random.choice([
-                "SET", "GET", "INCR", "DECR", "DEL", "EXISTS", "EXPIRE", "TTL",
-                "LPUSH", "RPUSH", "LRANGE", "LPOP", "RPOP", "LLEN", "LTRIM",
-                "SADD", "SREM", "SMEMBERS", "SCARD",
-                "HSET", "HGET", "HDEL", "HGETALL", "HLEN",
-                "ZADD", "ZREM", "ZRANGE", "ZCARD", "ZSCORE"
-            ])
+            return random.choice(
+                [
+                    "SET",
+                    "GET",
+                    "INCR",
+                    "DECR",
+                    "DEL",
+                    "EXISTS",
+                    "EXPIRE",
+                    "TTL",
+                    "LPUSH",
+                    "RPUSH",
+                    "LRANGE",
+                    "LPOP",
+                    "RPOP",
+                    "LLEN",
+                    "LTRIM",
+                    "SADD",
+                    "SREM",
+                    "SMEMBERS",
+                    "SCARD",
+                    "HSET",
+                    "HGET",
+                    "HDEL",
+                    "HGETALL",
+                    "HLEN",
+                    "ZADD",
+                    "ZREM",
+                    "ZRANGE",
+                    "ZCARD",
+                    "ZSCORE",
+                ]
+            )
         elif workload_type == "list_operations":
-            return random.choice(["LPUSH", "RPUSH", "LRANGE", "LPOP", "RPOP", "LLEN", "LTRIM"])
+            return random.choice(
+                ["LPUSH", "RPUSH", "LRANGE", "LPOP", "RPOP", "LLEN", "LTRIM"]
+            )
         elif workload_type == "pubsub_heavy":
             return random.choice(["PUBLISH", "SUBSCRIBE"])
         else:
             return random.choice(["SET", "GET", "INCR", "DECR", "DEL", "EXISTS"])
-    
+
     @abstractmethod
     def execute_operation(self) -> int:
         """Execute operation(s). Returns number of operations executed (0 if failed)."""
         pass
 
+
 class BasicWorkload(BaseWorkload):
     """Basic Redis operations: SET, GET, DEL, INCR."""
-    
+
     def execute_operation(self) -> int:
         """Execute a basic Redis operation."""
         operation = self._choose_operation()
@@ -176,11 +207,11 @@ class BasicWorkload(BaseWorkload):
 
 class ListWorkload(BaseWorkload):
     """List operations: LPUSH, LRANGE, LPOP, RPUSH, RPOP."""
-    
+
     def execute_operation(self) -> int:
         """Execute a list operation."""
         operation = self._choose_operation()
-        
+
         try:
             if operation == "LPUSH":
                 key = self._generate_key(operation)
@@ -205,11 +236,11 @@ class ListWorkload(BaseWorkload):
             elif operation == "RPOP":
                 key = self._generate_key(operation)
                 self.client.rpop(key)
-                
+
             else:
                 self.logger.warning(f"Unknown list operation: {operation}")
                 return False
-            
+
             return 1
 
         except Exception as e:
@@ -393,33 +424,43 @@ class PipelineWorkload(BaseWorkload):
             operations_count = len(operations)
             if operations_count == 0:
                 self.logger.warning(
-                    f"No operations added to pipeline. Available operations: {self.config.get_option('operations', [])}")
+                    f"No operations added to pipeline. Available operations: {self.config.get_option('operations', [])}"
+                )
                 return 0
 
             start_time = time.time()
             try:
                 pipe.execute()
             except Exception as e:
-                avg_duration = (time.time() - start_time) / operations_count if operations_count > 0 else 0
+                avg_duration = (
+                    (time.time() - start_time) / operations_count
+                    if operations_count > 0
+                    else 0
+                )
                 for operation in operations:
-                    self.metrics.record_operation(operation, avg_duration, False, error_type=type(e).__name__)
+                    self.metrics.record_operation(
+                        operation, avg_duration, False, error_type=type(e).__name__
+                    )
                 raise
 
-            avg_duration = (time.time() - start_time) / operations_count if operations_count > 0 else 0
+            avg_duration = (
+                (time.time() - start_time) / operations_count
+                if operations_count > 0
+                else 0
+            )
             for operation in operations:
                 self.metrics.record_operation(operation, avg_duration, True)
 
             return operations_count  # Return number of operations executed
 
-
         except Exception as e:
-            self.logger.error(f"Failed to execute pipeline: {e}")
+            self.logger.exception(f"Failed to execute pipeline: {e}", stack_info=True)
             return 0
 
 
 class TransactionWorkload(BaseWorkload):
     """Transaction operations using MULTI/EXEC."""
-    
+
     def execute_operation(self) -> int:
         """Execute a transaction with multiple operations."""
         try:
@@ -455,7 +496,9 @@ class TransactionWorkload(BaseWorkload):
                 duration = time.time() - start_time
 
                 # Record individual operation metrics
-                avg_duration = duration / operations_count if operations_count > 0 else 0
+                avg_duration = (
+                    duration / operations_count if operations_count > 0 else 0
+                )
                 for operation in operations:
                     self.metrics.record_operation(operation, avg_duration, True)
 
@@ -463,18 +506,21 @@ class TransactionWorkload(BaseWorkload):
 
             else:
                 self.logger.warning(
-                    f"No operations added to transaction pipeline. Available operations: {self.config.get_option('operations', [])}")
+                    f"No operations added to transaction pipeline. Available operations: {self.config.get_option('operations', [])}"
+                )
                 return 0
 
         except Exception as e:
             self.logger.error(f"Failed to execute transaction: {e}")
-            self.metrics.record_operation("MULTI/EXEC", 0, False, error_type=type(e).__name__)
+            self.metrics.record_operation(
+                "MULTI/EXEC", 0, False, error_type=type(e).__name__
+            )
             return 0
 
 
 class PubSubWorkload(BaseWorkload):
     """Publish/Subscribe operations."""
-    
+
     def __init__(self, config: WorkloadConfig, client: RedisClient):
         super().__init__(config, client)
         self._pubsub = None
@@ -482,8 +528,9 @@ class PubSubWorkload(BaseWorkload):
         self._stop_subscriber = threading.Event()
         # Generate unique subscriber ID for this workload instance
         import uuid
+
         self._subscriber_id = f"subscriber_{uuid.uuid4().hex[:8]}"
-    
+
     def _start_subscriber(self):
         """Start subscriber in a separate thread."""
         try:
@@ -501,13 +548,21 @@ class PubSubWorkload(BaseWorkload):
                     start_time = time.time()
                     message = self._pubsub.get_message(timeout=0.5)
 
-                    if message and message['type'] == 'message':
-                        channel_name = message['channel'].decode() if isinstance(message['channel'], bytes) else str(message['channel'])
+                    if message and message["type"] == "message":
+                        channel_name = (
+                            message["channel"].decode()
+                            if isinstance(message["channel"], bytes)
+                            else str(message["channel"])
+                        )
 
                         # Record receive metrics using unified pub/sub metric
-                        self.metrics.record_pubsub_operation(channel_name, 'RECEIVE', self._subscriber_id, success=True)
+                        self.metrics.record_pubsub_operation(
+                            channel_name, "RECEIVE", self._subscriber_id, success=True
+                        )
 
-                        self.logger.debug(f"Received message on {channel_name}: {message['data']}")
+                        self.logger.debug(
+                            f"Received message on {channel_name}: {message['data']}"
+                        )
 
                 except (ConnectionError, ValueError) as e:
                     # These are expected during shutdown, break quietly
@@ -518,7 +573,13 @@ class PubSubWorkload(BaseWorkload):
                         # Use default channel for error tracking
                         channels = self.config.get_option("channels", ["test_channel"])
                         default_channel = channels[0] if channels else "unknown"
-                        self.metrics.record_pubsub_operation(default_channel, 'RECEIVE', self._subscriber_id, success=False, error_type=type(e).__name__)
+                        self.metrics.record_pubsub_operation(
+                            default_channel,
+                            "RECEIVE",
+                            self._subscriber_id,
+                            success=False,
+                            error_type=type(e).__name__,
+                        )
                         self.logger.debug(f"Subscriber error (continuing): {e}")
                     break
 
@@ -533,7 +594,7 @@ class PubSubWorkload(BaseWorkload):
                     self._pubsub.close()
                 except:
                     pass  # Ignore errors during cleanup
-    
+
     def execute_operation(self) -> int:
         """Execute pub/sub operation."""
         operation = self._choose_operation()
@@ -547,8 +608,13 @@ class PubSubWorkload(BaseWorkload):
 
             elif operation == "SUBSCRIBE":
                 # Start subscriber if not already running
-                if self._subscriber_thread is None or not self._subscriber_thread.is_alive():
-                    self._subscriber_thread = threading.Thread(target=self._start_subscriber)
+                if (
+                    self._subscriber_thread is None
+                    or not self._subscriber_thread.is_alive()
+                ):
+                    self._subscriber_thread = threading.Thread(
+                        target=self._start_subscriber
+                    )
                     self._subscriber_thread.daemon = True
                     self._subscriber_thread.start()
 
@@ -557,11 +623,11 @@ class PubSubWorkload(BaseWorkload):
                 return 0
 
             return 1
-            
+
         except Exception as e:
             self.logger.error(f"Failed to execute {operation}: {e}")
             return 0
-    
+
     def cleanup(self):
         """Cleanup pub/sub resources."""
         # Signal subscriber thread to stop
@@ -584,7 +650,7 @@ class PubSubWorkload(BaseWorkload):
 
 class WorkloadFactory:
     """Factory for creating workload instances."""
-    
+
     @staticmethod
     def create_workload(config: WorkloadConfig, client: RedisClient) -> BaseWorkload:
         """Create appropriate workload based on configuration."""
@@ -595,13 +661,19 @@ class WorkloadFactory:
         use_pipeline = config.get_option("usePipeline", False)
 
         # Use workload type first, then fall back to operations
-        if workload_type == "transaction_heavy" or (use_pipeline and "MULTI" in operations):
+        if workload_type == "transaction_heavy" or (
+            use_pipeline and "MULTI" in operations
+        ):
             return TransactionWorkload(config, client)
         elif workload_type == "high_throughput" or use_pipeline:
             return PipelineWorkload(config, client)
-        elif workload_type == "pubsub_heavy" or operations.intersection({"PUBLISH", "SUBSCRIBE"}):
+        elif workload_type == "pubsub_heavy" or operations.intersection(
+            {"PUBLISH", "SUBSCRIBE"}
+        ):
             return PubSubWorkload(config, client)
-        elif workload_type == "list_operations" or operations.intersection({"LPUSH", "LRANGE", "LPOP", "RPUSH", "RPOP"}):
+        elif workload_type == "list_operations" or operations.intersection(
+            {"LPUSH", "LRANGE", "LPOP", "RPUSH", "RPOP"}
+        ):
             return ListWorkload(config, client)
         else:
             return BasicWorkload(config, client)

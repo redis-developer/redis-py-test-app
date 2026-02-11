@@ -54,14 +54,7 @@ class TestRunner:
 
     def _create_redis_client(self) -> RedisClient:
         """Create a single Redis client instance."""
-        try:
-            client = RedisClient(self.config.redis)
-            self.logger.debug("Created Redis client instance")
-            return client
-
-        except Exception as e:
-            self.logger.error(f"Failed to create Redis client: {e}")
-            raise
+        return RedisClient(self.config.redis)
 
     def _worker_thread(
         self, client_id: int, thread_id: int, shared_client: RedisClient
@@ -117,7 +110,9 @@ class TestRunner:
                                 time.sleep(min(sleep_time, 0.1))  # Cap sleep time
 
                 except Exception as e:
-                    self.logger.error(f"{thread_name}: Error in operation: {e}")
+                    self.logger.exception(
+                        f"{thread_name}: Error in operation: {e}", stack_info=True
+                    )
                     time.sleep(0.1)  # Brief pause on error
 
             self.logger.debug(f"{thread_name}: Completed {operation_count} operations")
@@ -208,10 +203,13 @@ class TestRunner:
             )
             for client_id in range(self.config.test.clients):
                 try:
+                    self.logger.info(
+                        f"Client-{client_id}: Starting creation of Redis client..."
+                    )
                     client = self._create_redis_client()
                     self._redis_clients.append(client)
                     self.logger.info(
-                        f"Client-{client_id}: Successfully connected to Redis"
+                        f"Client-{client_id}: Successfully added Redis client"
                     )
                 except Exception as e:
                     self.logger.error(f"Failed to create Redis client {client_id}: {e}")
@@ -233,9 +231,6 @@ class TestRunner:
                 self._stats_thread.start()
 
             # Start worker threads (multiple threads per Redis client)
-            total_threads = (
-                self.config.test.clients * self.config.test.threads_per_client
-            )
             for client_id in range(self.config.test.clients):
                 shared_client = self._redis_clients[client_id]
                 for thread_id in range(self.config.test.threads_per_client):
