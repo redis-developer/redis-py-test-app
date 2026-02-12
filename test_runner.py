@@ -111,7 +111,7 @@ class TestRunner:
 
                 except Exception as e:
                     self.logger.exception(
-                        f"{thread_name}: Error in operation: {e}", stack_info=True
+                        f"{thread_name}: Error in operation: {e}", stack_info=False
                     )
                     time.sleep(0.1)  # Brief pause on error
 
