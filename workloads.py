@@ -201,7 +201,7 @@ class BasicWorkload(BaseWorkload):
             return 1  # One operation executed
 
         except Exception as e:
-            self.logger.error(f"Failed to execute {operation}: {e}")
+            self.logger.error(f"Failed to execute {operation} for key {key}: {e}")
             return 0  # No operations executed
 
 
@@ -244,7 +244,7 @@ class ListWorkload(BaseWorkload):
             return 1
 
         except Exception as e:
-            self.logger.error(f"Failed to execute {operation}: {e}")
+            self.logger.error(f"Failed to execute {operation} for key {key}: {e}")
             return 0
 
 
