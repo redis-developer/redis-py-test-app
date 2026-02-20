@@ -454,7 +454,7 @@ class PipelineWorkload(BaseWorkload):
             return operations_count  # Return number of operations executed
 
         except Exception as e:
-            self.logger.exception(f"Failed to execute pipeline: {e}", stack_info=True)
+            self.logger.exception(f"Failed to execute pipeline: {e}")
             return 0
 
 
