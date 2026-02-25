@@ -57,6 +57,12 @@ class RedisTestLogger:
             "redis.credentials",  # Credentials-related logging
             "push_response",  # Push responses (maintenance notifications, etc.)
             "redis.maint_notifications",  # Maintenance notifications
+            "redis.connection",  # Connection-level logging
+            "redis.client",  # Client-level logging
+            "redis.pool",  # Connection pool logging
+            "redis.parsers",  # Parsers logging
+            "redis.retry",  # Retry logic logging
+            "redis.cluster",  # Cluster-specific logging
         ]
         for logger_name in redis_loggers:
             redis_logger = logging.getLogger(logger_name)
